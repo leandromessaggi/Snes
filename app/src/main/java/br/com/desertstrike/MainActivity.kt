@@ -75,7 +75,7 @@ class MainActivity : Activity() {
     private fun loadMods() {
         mods.clear()
         val prefs = getSharedPreferences("mods_$romHash", MODE_PRIVATE)
-        modDirectory().listFiles()?.filter { it.isFile && it.extension.equals("ips", true) }
+        modDirectory().listFiles()?.filter { it.isFile && ModPatcher.supported(it.name) }
             ?.sortedBy { it.name }?.forEach { file ->
                 try { mods.add(InstalledMod(file.name, file.readBytes(), prefs.getBoolean(file.name, true))) }
                 catch (_: Exception) {}
@@ -170,12 +170,12 @@ class MainActivity : Activity() {
         touchMask = 0; analogMask = 0
         synchronized(pressed) { pressed.clear() }
         updatePad()
-        val items = arrayOf("Abrir ROM", "Jogar / Continuar", "Adicionar IPS", "Importar ZIP de mods",
+        val items = arrayOf("Abrir ROM", "Jogar / Continuar", "Adicionar IPS/BPS", "Importar ZIP de mods",
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico",
             "Exportar diagnóstico JSON")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.11 — experimental")
+        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.12 — experimental")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -235,7 +235,7 @@ class MainActivity : Activity() {
             .setPositiveButton("Aplicar") { _, _ ->
                 try {
                     var candidate = rom?.copyOf() ?: error("ROM ausente")
-                    mods.forEachIndexed { i, mod -> if (checks[i]) candidate = IpsPatcher.apply(candidate, mod.patch) }
+                    mods.forEachIndexed { i, mod -> if (checks[i]) candidate = ModPatcher.apply(candidate, mod.patch) }
                     stopCore()
                     val edit = getSharedPreferences("mods_$romHash", MODE_PRIVATE).edit()
                     mods.forEachIndexed { i, mod -> mod.enabled = checks[i]; edit.putBoolean(mod.filename, checks[i]) }
@@ -274,7 +274,7 @@ class MainActivity : Activity() {
         return JSONObject()
             .put("schema", "desert-android-diagnostics-v1")
             .put("created_utc", Instant.now().toString())
-            .put("app_version", "0.11-experimental")
+            .put("app_version", "0.12-experimental")
             .put("android_sdk", Build.VERSION.SDK_INT)
             .put("manufacturer", Build.MANUFACTURER)
             .put("device_model", Build.MODEL)
@@ -318,7 +318,7 @@ class MainActivity : Activity() {
                 PICK_IPS -> {
                     val patch = contentResolver.openInputStream(uri)?.use { RomLoader.readCapped(it, 2*1024*1024) }
                         ?: error("Patch ausente")
-                    installPatches(listOf("IPS" to patch))
+                    installPatches(listOf("Patch" to patch))
                 }
                 PICK_PACK -> {
                     val pack = contentResolver.openInputStream(uri)?.use { ModPack.parse(it, rom ?: error("ROM ausente")) }
@@ -345,13 +345,14 @@ class MainActivity : Activity() {
     }
     private fun installPatches(items: List<Pair<String, ByteArray>>) {
         var candidate = rom?.copyOf() ?: error("ROM ausente")
-        mods.filter { it.enabled }.forEach { candidate = IpsPatcher.apply(candidate, it.patch) }
-        items.forEach { candidate = IpsPatcher.apply(candidate, it.second) }
+        mods.filter { it.enabled }.forEach { candidate = ModPatcher.apply(candidate, it.patch) }
+        items.forEach { candidate = ModPatcher.apply(candidate, it.second) }
         val dir = modDirectory().apply { mkdirs() }
         var n = (dir.listFiles()?.size ?: 0) + 1
         items.forEach { (label, bytes) ->
             val safe = label.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(30)
-            val name = "patch_${(n++).toString().padStart(4, '0')}_$safe.ips"
+            val type = ModPatcher.extension(bytes)
+            val name = "patch_${(n++).toString().padStart(4, '0')}_$safe.$type"
             File(dir, name).writeBytes(bytes)
             mods.add(InstalledMod(name, bytes, true))
         }
@@ -365,7 +366,7 @@ class MainActivity : Activity() {
         starting = true
         try {
             var candidate = original
-            mods.filter { it.enabled }.forEach { candidate = IpsPatcher.apply(candidate, it.patch) }
+            mods.filter { it.enabled }.forEach { candidate = ModPatcher.apply(candidate, it.patch) }
             currentHash = RomIdentity.digest(candidate)
             val core = File(applicationInfo.nativeLibraryDir, "libsnes9x_libretro.so")
             check(core.exists()) { "Núcleo Snes9x ausente" }

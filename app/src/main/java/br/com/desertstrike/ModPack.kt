@@ -6,7 +6,7 @@ import java.io.InputStream
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
-/** Imports IPS modpacks into memory; never executes third-party code. */
+/** Imports IPS/BPS modpacks into memory; never executes third-party code. */
 object ModPack {
     data class Patch(val label: String, val bytes: ByteArray)
     data class Contents(val name: String, val patches: List<Patch>)
@@ -59,9 +59,9 @@ object ModPack {
         val patches = ArrayList<Patch>()
         for (i in 0 until list.length()) {
             val key = list.getString(i)
-            require(key.endsWith(".ips", ignoreCase = true)) { "Mod deve ser IPS: $key" }
+            require(ModPatcher.supported(key)) { "Mod deve ser IPS ou BPS: $key" }
             val data = files[key] ?: error("Patch ausente no pacote: $key")
-            resultingRom = IpsPatcher.apply(resultingRom, data)
+            resultingRom = ModPatcher.apply(resultingRom, data)
             patches.add(Patch("$displayName · ${key.substringAfterLast('/')}", data))
         }
         return Contents(displayName, patches)

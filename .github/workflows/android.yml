@@ -39,6 +39,8 @@ jobs:
           if command -v kotlinc >/dev/null 2>&1; then
             kotlinc app/src/main/java/br/com/desertstrike/IpsPatcher.kt tests/TestIps.kt -include-runtime -d /tmp/test-ips.jar
             java -jar /tmp/test-ips.jar
+            kotlinc app/src/main/java/br/com/desertstrike/{IpsPatcher,BpsPatcher,ModPatcher}.kt tests/TestBps.kt -include-runtime -d /tmp/test-bps.jar
+            java -jar /tmp/test-bps.jar
           fi
       - name: Compile the Snes9x Libretro core for Android arm64
         shell: bash
@@ -72,11 +74,11 @@ jobs:
           unzip -t "$APK"
           python3 scripts/check_elf_16k.py "$APK"
           mkdir -p dist
-          cp "$APK" dist/DesertStrike-v0.11-debug.apk
+          cp "$APK" dist/DesertStrike-v0.12-debug.apk
           cp SNES9X_COMMIT.txt dist/
-          (cd dist && sha256sum DesertStrike-v0.11-debug.apk > SHA256SUMS.txt)
+          (cd dist && sha256sum DesertStrike-v0.12-debug.apk > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: DesertStrike-v0.11-debug-APK
+          name: DesertStrike-v0.12-debug-APK
           path: dist/
           if-no-files-found: error

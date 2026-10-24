@@ -9,8 +9,8 @@ android {
         applicationId = "br.com.desertstrike"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.11-experimental"
+        versionCode = 12
+        versionName = "0.12-experimental"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
     ndkVersion = "27.2.12479018"

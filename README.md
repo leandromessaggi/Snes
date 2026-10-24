@@ -1,8 +1,8 @@
-# Desert Strike Android v0.11 (experimental)
+# Desert Strike Android v0.12 (experimental)
 
 Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (SNES)** para Android ARM64.
 
-> **Não é ainda um port nativo independente.** A ROM é executada pelo Snes9x/Libretro por meio de uma ponte Android em C++/JNI. A v0.8 foi compilada pelo GitHub Actions, mas a v0.11 e a execução no aparelho ainda precisam de validação. Não há garantia de ausência de bugs.
+> **Não é ainda um port nativo independente.** A ROM é executada pelo Snes9x/Libretro por meio de uma ponte Android em C++/JNI. A v0.8 foi compilada pelo GitHub Actions, mas a v0.12 e a execução no aparelho ainda precisam de validação. Não há garantia de ausência de bugs.
 
 ## Componentes
 
@@ -16,7 +16,7 @@ Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (S
 
 1. Abra **Actions** neste repositório e escolha **Android ARM64 debug APK**.
 2. Execute **Run workflow** na branch `feature/desert-strike-android`. Se a opção não aparecer, o workflow precisa existir na branch padrão ou ser incorporado à `main`.
-3. Após concluir com **sucesso**, baixe o artefato `DesertStrike-v0.11-debug-APK`.
+3. Após concluir com **sucesso**, baixe o artefato `DesertStrike-v0.12-debug-APK`.
 4. Instale o APK em dispositivo Android ARM64 e use **Abrir ROM**. A ROM **não está incluída** no repositório nem no APK.
 
 O aplicativo verifica se a ROM, depois de remover eventual cabeçalho copier de 512 bytes, tem SHA-256:
@@ -44,25 +44,25 @@ Não há garantias de funcionamento integral, compatibilidade com todos os apare
 
 A ROM, gráficos, músicas e outros recursos do jogo não são distribuídos. Todos os direitos pertencem aos seus respectivos titulares. A compilação utiliza [Snes9x](https://github.com/snes9xgit/snes9x), que possui condições próprias de licença; consulte-as antes de distribuir binários.
 
-## Novidades da v0.11
+## Novidades da v0.12
 
 - O rastreador conserva a amostra de 32 alterações por quadro para diagnóstico, mas calcula os rankings usando **todas as alterações** da RAM.
 - Rankings por botão com comparação entre quadros pressionados e sem pressão.
 - Ferramenta `python3 scripts/analyze_wram_trace.py trace.json --button 6` e testes de regressão.
 - O algoritmo aponta correlação, **não** prova que o offset seja uma coordenada ou regra de combate.
 
-A v0.8 compilou e publicou APK de debug; após as mudanças da v0.11, aguarde o build específico desta revisão passar. Testes de execução no telefone seguem pendentes.
+A v0.8 compilou e publicou APK de debug; após as mudanças da v0.12, aguarde o build específico desta revisão passar. Testes de execução no telefone seguem pendentes.
 
-## Diagnóstico de execução v0.11
+## Diagnóstico de execução v0.12
 
 O menu **Diagnóstico técnico** agora informa `frames` (execuções do núcleo), `video_callbacks` (quadros válidos recebidos), `audio_pairs` (pares de amostras estéreo), `pending_audio_samples` (amostras aguardando consumo), resolução do último quadro e atividade do rastreamento. Isso ajuda a distinguir falhas de execução, vídeo e áudio. A contagem e o reset são verificados pelo teste integrado JNI com núcleo simulado.
 
-## Novidades v0.11 — diagnóstico de funcionamento no aparelho
+## Novidades v0.12 — diagnóstico de funcionamento no aparelho
 
 - Menu **Exportar diagnóstico JSON** usa o seletor de documentos do Android. Exporta versão, Android/ABI, presença do núcleo, SHA-256 da ROM, estado dos mods e métricas JNI (quadros, vídeo, áudio e rastreamento), sem incluir dados da ROM, RAM, savestates ou caminhos internos.
 - Corrigida a perda da preferência de controle touch ao remapear botões de um gamepad.
 - Ao perder o foco, o aplicativo limpa os comandos mantidos pressionados para evitar botões presos.
-- Após o workflow ficar verde, baixe **DesertStrike-v0.11-debug-APK** em *Artifacts*.
+- Após o workflow ficar verde, baixe **DesertStrike-v0.12-debug-APK** em *Artifacts*.
 - Teste em dispositivo real ainda necessário: compilar não garante ausência de bugs ou jogabilidade.
 
 ### Reprodutibilidade
@@ -70,3 +70,7 @@ O menu **Diagnóstico técnico** agora informa `frames` (execuções do núcleo)
 O GitHub Actions usa a revisão fixa do Snes9x `1bcc369e89f08243e0a462882fb1f3e42e51de3a` para reduzir mudanças inesperadas na emulação e nos save states entre builds. O núcleo continua sendo software de terceiros e suas condições de licença devem ser respeitadas.
 
 [Plano de testes Android e exportação de diagnóstico](docs/ANDROID_TEST_PLAN.md).
+
+## Suporte adicional a mods v0.12
+
+O menu passou a aceitar patches BPS além de IPS. O decodificador BPS valida o CRC32 de entrada, saída e do arquivo, limites de tamanho e as quatro operações do formato. Pacotes ZIP agora podem conter patches mistos IPS/BPS (aplicados em ordem). Os testes Kotlin estão disponíveis em `tests/TestBps.kt` e são chamados pelo workflow quando o compilador Kotlin está presente.
