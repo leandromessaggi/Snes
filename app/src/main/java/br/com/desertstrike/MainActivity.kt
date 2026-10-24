@@ -7,6 +7,10 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Bundle
+import android.os.Build
+import org.json.JSONObject
+import org.json.JSONArray
+import java.time.Instant
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -41,11 +45,13 @@ class MainActivity : Activity() {
     private var analogMask = 0
     private var remapTarget: Int? = null
     private var traceExport: String? = null
+    private var diagnosticExport: String? = null
 
     private val PICK_ROM = 201
     private val PICK_IPS = 202
     private val PICK_PACK = 203
     private val SAVE_TRACE = 204
+    private val SAVE_DIAGNOSTIC = 205
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -118,7 +124,9 @@ class MainActivity : Activity() {
             mapping.entries.removeAll { it.value == target }
             mapping[keyCode] = target
             val editor = getSharedPreferences("controls", MODE_PRIVATE).edit().clear()
+            // Preserve the touch overlay preference when persisting the gamepad mapping.
             editor.putBoolean("mapping_custom", true)
+            editor.putBoolean("touch", gameView.touchVisible)
             mapping.forEach { (k,v) -> editor.putInt("map_$k", v) }
             editor.apply()
             remapTarget = null
@@ -165,8 +173,9 @@ class MainActivity : Activity() {
         val items = arrayOf("Abrir ROM", "Jogar / Continuar", "Adicionar IPS", "Importar ZIP de mods",
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
-            "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.10 — experimental")
+            "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico",
+            "Exportar diagnóstico JSON")
+        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.11 — experimental")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -202,6 +211,15 @@ class MainActivity : Activity() {
                         AlertDialog.Builder(this).setTitle("Diagnóstico")
                             .setMessage("ROM: ${rom?.size ?: 0} bytes\nCore Snes9x: ${core.exists()}\nAtivo: ${active.get()}\nMods: ${mods.size}\nABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}\nMétricas JNI: ${NativeCore.stats()}")
                             .setPositiveButton("OK") { _, _ -> showMenu() }.show()
+                    }
+                    14 -> {
+                        try {
+                            diagnosticExport = createDiagnosticJson()
+                            picker(SAVE_DIAGNOSTIC)
+                        } catch (e: Exception) {
+                            toast("Falha ao preparar diagnóstico: " + e.message)
+                            showMenu()
+                        }
                     }
                 }
             }
@@ -246,11 +264,38 @@ class MainActivity : Activity() {
                     .setOnCancelListener { remapTarget = null; showMenu() }.show()
             }.setNegativeButton("Voltar") { _, _ -> showMenu() }.show()
     }
+    private fun createDiagnosticJson(): String {
+        // No ROM bytes, save states, RAM snapshots, file paths, or account identifiers.
+        val core = File(applicationInfo.nativeLibraryDir, "libsnes9x_libretro.so")
+        val installedMods = JSONArray()
+        mods.forEach { mod ->
+            installedMods.put(JSONObject().put("file", mod.filename).put("enabled", mod.enabled))
+        }
+        return JSONObject()
+            .put("schema", "desert-android-diagnostics-v1")
+            .put("created_utc", Instant.now().toString())
+            .put("app_version", "0.11-experimental")
+            .put("android_sdk", Build.VERSION.SDK_INT)
+            .put("manufacturer", Build.MANUFACTURER)
+            .put("device_model", Build.MODEL)
+            .put("abi", JSONArray(Build.SUPPORTED_ABIS.toList()))
+            .put("rom_loaded", rom != null)
+            .put("original_rom_sha256", romHash)
+            .put("active_rom_sha256", currentHash)
+            .put("snes9x_library_present", core.exists())
+            .put("core_active", active.get())
+            .put("touch_controls_enabled", gameView.touchVisible)
+            .put("mods", installedMods)
+            .put("native", JSONObject(NativeCore.stats()))
+            .toString(2)
+    }
+
     private fun picker(type: Int) {
-        val intent = Intent(if (type == SAVE_TRACE) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
+        val intent = Intent(if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
         intent.addCategory(Intent.CATEGORY_OPENABLE)
-        intent.type = if (type == SAVE_TRACE) "application/json" else "*/*"
+        intent.type = if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) "application/json" else "*/*"
         if (type == SAVE_TRACE) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-wram-trace.json")
+        if (type == SAVE_DIAGNOSTIC) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-diagnostics.json")
         @Suppress("DEPRECATION")
         startActivityForResult(intent, type)
     }
@@ -279,6 +324,13 @@ class MainActivity : Activity() {
                     val pack = contentResolver.openInputStream(uri)?.use { ModPack.parse(it, rom ?: error("ROM ausente")) }
                         ?: error("ZIP ausente")
                     installPatches(pack.patches.map { it.label to it.bytes })
+                }
+                SAVE_DIAGNOSTIC -> {
+                    val text = diagnosticExport ?: error("Diagnóstico ausente")
+                    contentResolver.openOutputStream(uri, "w")?.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                        ?: error("Destino indisponível")
+                    diagnosticExport = null
+                    toast("Diagnóstico exportado")
                 }
                 SAVE_TRACE -> {
                     val text = traceExport ?: error("Rastreamento ausente")
@@ -403,6 +455,15 @@ class MainActivity : Activity() {
                 if (currentHash.isNotBlank()) NativeCore.saveRam()?.let { File(filesDir, "$currentHash.srm").writeBytes(it) }
             } catch (_: Exception) {}
             NativeCore.stop()
+        }
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus && ::gameView.isInitialized) {
+            synchronized(pressed) { pressed.clear() }
+            touchMask = 0
+            analogMask = 0
+            updatePad()
         }
     }
     override fun onPause() {
