@@ -9,11 +9,13 @@ public final class JniSmokeJava {
         String path=new File(args[0]).getAbsolutePath();
         check(core.start("/missing/core.so","/tmp",new byte[128])==0.0,"Loader error");
         check(!core.lastError().isEmpty(),"Expected diagnostic");
+        check(core.stats().contains("\"loaded\":false"),"Not running");
         check(core.start(path,"/tmp",new byte[8])==0.0,"Invalid mock ROM");
         for(int format=0;format<3;format++) {
             byte[] rom=new byte[128]; rom[0]=(byte)format;
             check(core.start(path,"/tmp",rom)==32000.0,"Sample rate");
             check(core.fps()==60.0,"FPS");
+            check(core.stats().contains("\"loaded\":true"),"Core loaded");
             check(core.traceStart(),"WRAM tracing");
             int[] pixels=new int[512*512];
             check(core.frame(pixels)==((2<<16)|2),"Frame shape");
@@ -22,6 +24,10 @@ public final class JniSmokeJava {
             check(core.drainAudio(samples)==10,"Audio samples");
             check(samples[0]==-1 && samples[1]==1 && samples[8]==-123 && samples[9]==456,"Audio data");
             core.input(0x181); core.frame(pixels);
+            String metrics=core.stats();
+            check(metrics.contains("\"frames\":2"),"Executed frames");
+            check(metrics.contains("\"video_callbacks\":2"),"Video callbacks");
+            check(metrics.contains("\"audio_pairs\":10"),"Stereo audio pairs");
             String trace=core.traceStop();
             check(trace!=null && trace.contains("\"pad\":385"),"Controller input");
             byte[] state=core.saveState();
@@ -30,6 +36,7 @@ public final class JniSmokeJava {
             check(core.loadRam(sram) && Arrays.equals(sram,core.saveRam()),"SRAM");
             core.stop();
             check(core.frame(pixels)==0,"Stop lifecycle");
+            check(core.stats().contains("\"frames\":0"),"Reset counters");
             System.out.println("PASS Java JNI mock format "+format);
         }
     }

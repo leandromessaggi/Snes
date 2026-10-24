@@ -3,6 +3,7 @@ public final class NativeCore {
     static { System.loadLibrary("desert_bridge"); }
     public native double start(String path,String dir,byte[] rom);
     public native String lastError();
+    public native String stats();
     public native double fps();
     public native void stop();
     public native int frame(int[] pixels);

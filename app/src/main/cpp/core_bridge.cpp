@@ -58,20 +58,25 @@ std::vector<jint> image(512*512, 0xff000000);
 std::atomic<unsigned> pad{0};
 desert::AudioRing<32768> audioRing;
 desert::RamTrace trace;
+uint64_t framesRun=0, videoCalls=0, audioPairs=0;
 
 void audioSample(int16_t a, int16_t b) {
     std::lock_guard<std::mutex> l(audioMutex);
     audioRing.push(a,b);
+    ++audioPairs;
 }
 size_t audioBatch(const int16_t* s, size_t n) {
     if (!s) return n;
     std::lock_guard<std::mutex> l(audioMutex);
-    for (size_t i=0;i<n && i<65536;++i) audioRing.push(s[2*i],s[2*i+1]);
+    const auto count=std::min(n,size_t(65536));
+    for (size_t i=0;i<count;++i) audioRing.push(s[2*i],s[2*i+1]);
+    audioPairs += count;
     return n;
 }
 void video(const void* bytes, unsigned w, unsigned h, size_t pitch) {
     if (!bytes || reinterpret_cast<intptr_t>(bytes)==-1 || w==0 || h==0 || w>512 || h>512) return;
     width=w; height=h;
+    ++videoCalls;
     const auto* base=static_cast<const uint8_t*>(bytes);
     for (unsigned y=0;y<h;++y) {
         const auto* row=base+pitch*y;
@@ -162,6 +167,7 @@ void clean() {
     loaded=false; initialized=false;
     if (lib) { dlclose(lib); lib=nullptr; }
     api=Api{}; romBytes.clear(); trace.clear();
+    framesRun=videoCalls=audioPairs=0;
     pad.store(0); width=256; height=224; nominalFps=60;
     std::lock_guard<std::mutex> lock(audioMutex);
     audioRing.clear();
@@ -232,11 +238,27 @@ Java_br_com_desertstrike_NativeCore_stop(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(coreMutex);
     clean();
 }
+extern "C" JNIEXPORT jstring JNICALL
+Java_br_com_desertstrike_NativeCore_stats(JNIEnv* env,jobject) {
+    std::lock_guard<std::mutex> coreLock(coreMutex);
+    std::lock_guard<std::mutex> audioLock(audioMutex);
+    const std::string json=std::string("{\"loaded\":")+(loaded?"true":"false")+
+        ",\"frames\":"+std::to_string(framesRun)+
+        ",\"video_callbacks\":"+std::to_string(videoCalls)+
+        ",\"audio_pairs\":"+std::to_string(audioPairs)+
+        ",\"pending_audio_samples\":"+std::to_string(audioRing.pending())+
+        ",\"video_width\":"+std::to_string(width)+
+        ",\"video_height\":"+std::to_string(height)+
+        ",\"trace_frames\":"+std::to_string(trace.count())+
+        ",\"trace_active\":"+(trace.active()?"true":"false")+"}";
+    return env->NewStringUTF(json.c_str());
+}
 extern "C" JNIEXPORT jint JNICALL
 Java_br_com_desertstrike_NativeCore_frame(JNIEnv* env,jobject,jintArray output) {
     std::lock_guard<std::mutex> lock(coreMutex);
     if (!loaded || !output) return 0;
     api.run();
+    ++framesRun;
     if (trace.active()) trace.capture(api.get_memory_data(2),api.get_memory_size(2),
                                      static_cast<uint16_t>(pad.load()));
     const auto count=width*height;

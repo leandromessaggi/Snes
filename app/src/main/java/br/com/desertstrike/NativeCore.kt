@@ -4,6 +4,7 @@ object NativeCore {
     init { System.loadLibrary("desert_bridge") }
     external fun start(corePath: String, storagePath: String, rom: ByteArray): Double
     external fun lastError(): String
+    external fun stats(): String
     external fun fps(): Double
     external fun stop()
     external fun frame(pixels: IntArray): Int

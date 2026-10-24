@@ -166,7 +166,7 @@ class MainActivity : Activity() {
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.9 — experimental")
+        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.10 — experimental")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -200,7 +200,7 @@ class MainActivity : Activity() {
                     13 -> {
                         val core = File(applicationInfo.nativeLibraryDir, "libsnes9x_libretro.so")
                         AlertDialog.Builder(this).setTitle("Diagnóstico")
-                            .setMessage("ROM: ${rom?.size ?: 0} bytes\nCore Snes9x: ${core.exists()}\nAtivo: ${active.get()}\nMods: ${mods.size}\nABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
+                            .setMessage("ROM: ${rom?.size ?: 0} bytes\nCore Snes9x: ${core.exists()}\nAtivo: ${active.get()}\nMods: ${mods.size}\nABI: ${android.os.Build.SUPPORTED_ABIS.joinToString()}\nMétricas JNI: ${NativeCore.stats()}")
                             .setPositiveButton("OK") { _, _ -> showMenu() }.show()
                     }
                 }

@@ -1,8 +1,8 @@
-# Desert Strike Android v0.9 (experimental)
+# Desert Strike Android v0.10 (experimental)
 
 Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (SNES)** para Android ARM64.
 
-> **Não é ainda um port nativo independente.** A ROM é executada pelo Snes9x/Libretro por meio de uma ponte Android em C++/JNI. A v0.8 foi compilada pelo GitHub Actions, mas a v0.9 e a execução no aparelho ainda precisam de validação. Não há garantia de ausência de bugs.
+> **Não é ainda um port nativo independente.** A ROM é executada pelo Snes9x/Libretro por meio de uma ponte Android em C++/JNI. A v0.8 foi compilada pelo GitHub Actions, mas a v0.10 e a execução no aparelho ainda precisam de validação. Não há garantia de ausência de bugs.
 
 ## Componentes
 
@@ -16,7 +16,7 @@ Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (S
 
 1. Abra **Actions** neste repositório e escolha **Android ARM64 debug APK**.
 2. Execute **Run workflow** na branch `feature/desert-strike-android`. Se a opção não aparecer, o workflow precisa existir na branch padrão ou ser incorporado à `main`.
-3. Após concluir com **sucesso**, baixe o artefato `DesertStrike-v0.9-debug-APK`.
+3. Após concluir com **sucesso**, baixe o artefato `DesertStrike-v0.10-debug-APK`.
 4. Instale o APK em dispositivo Android ARM64 e use **Abrir ROM**. A ROM **não está incluída** no repositório nem no APK.
 
 O aplicativo verifica se a ROM, depois de remover eventual cabeçalho copier de 512 bytes, tem SHA-256:
@@ -44,11 +44,15 @@ Não há garantias de funcionamento integral, compatibilidade com todos os apare
 
 A ROM, gráficos, músicas e outros recursos do jogo não são distribuídos. Todos os direitos pertencem aos seus respectivos titulares. A compilação utiliza [Snes9x](https://github.com/snes9xgit/snes9x), que possui condições próprias de licença; consulte-as antes de distribuir binários.
 
-## Novidades da v0.9
+## Novidades da v0.10
 
 - O rastreador conserva a amostra de 32 alterações por quadro para diagnóstico, mas calcula os rankings usando **todas as alterações** da RAM.
 - Rankings por botão com comparação entre quadros pressionados e sem pressão.
 - Ferramenta `python3 scripts/analyze_wram_trace.py trace.json --button 6` e testes de regressão.
 - O algoritmo aponta correlação, **não** prova que o offset seja uma coordenada ou regra de combate.
 
-A v0.8 compilou e publicou APK de debug; após as mudanças da v0.9, aguarde o build específico desta revisão passar. Testes de execução no telefone seguem pendentes.
+A v0.8 compilou e publicou APK de debug; após as mudanças da v0.10, aguarde o build específico desta revisão passar. Testes de execução no telefone seguem pendentes.
+
+## Diagnóstico de execução v0.10
+
+O menu **Diagnóstico técnico** agora informa `frames` (execuções do núcleo), `video_callbacks` (quadros válidos recebidos), `audio_pairs` (pares de amostras estéreo), `pending_audio_samples` (amostras aguardando consumo), resolução do último quadro e atividade do rastreamento. Isso ajuda a distinguir falhas de execução, vídeo e áudio. A contagem e o reset são verificados pelo teste integrado JNI com núcleo simulado.
