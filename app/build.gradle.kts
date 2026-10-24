@@ -20,3 +20,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
     packaging { jniLibs { useLegacyPackaging = true } }
 }
+
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+}
