@@ -166,7 +166,7 @@ class MainActivity : Activity() {
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.8 — experimental")
+        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.9 — experimental")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
