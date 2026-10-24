@@ -64,3 +64,9 @@ O menu **Diagnóstico técnico** agora informa `frames` (execuções do núcleo)
 - Ao perder o foco, o aplicativo limpa os comandos mantidos pressionados para evitar botões presos.
 - Após o workflow ficar verde, baixe **DesertStrike-v0.11-debug-APK** em *Artifacts*.
 - Teste em dispositivo real ainda necessário: compilar não garante ausência de bugs ou jogabilidade.
+
+### Reprodutibilidade
+
+O GitHub Actions usa a revisão fixa do Snes9x `1bcc369e89f08243e0a462882fb1f3e42e51de3a` para reduzir mudanças inesperadas na emulação e nos save states entre builds. O núcleo continua sendo software de terceiros e suas condições de licença devem ser respeitadas.
+
+[Plano de testes Android e exportação de diagnóstico](docs/ANDROID_TEST_PLAN.md).
