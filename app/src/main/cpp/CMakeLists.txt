@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(desert_bridge LANGUAGES CXX)
+add_library(desert_bridge SHARED core_bridge.cpp)
+set_target_properties(desert_bridge PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+target_link_libraries(desert_bridge PRIVATE log dl)
+if(ANDROID AND ANDROID_ABI STREQUAL "arm64-v8a")
+  target_link_options(desert_bridge PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")
+endif()

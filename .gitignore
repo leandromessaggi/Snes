@@ -1,0 +1,11 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+*.iml
+*.apk
+*.smc
+*.sfc
+*.srm
+*.state
+**/jniLibs/**/*.so
