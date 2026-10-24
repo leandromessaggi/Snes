@@ -35,6 +35,7 @@ jobs:
           python3 -m unittest discover -s tests -p 'test_*.py' -v
           g++ -std=c++17 -Wall -Wextra -Werror app/src/main/cpp/tests/test_native.cpp -o /tmp/desert-native-tests
           /tmp/desert-native-tests
+          bash scripts/test_jni_integration.sh
           if command -v kotlinc >/dev/null 2>&1; then
             kotlinc app/src/main/java/br/com/desertstrike/IpsPatcher.kt tests/TestIps.kt -include-runtime -d /tmp/test-ips.jar
             java -jar /tmp/test-ips.jar
