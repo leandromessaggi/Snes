@@ -175,7 +175,7 @@ class MainActivity : Activity() {
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico",
             "Exportar diagnóstico JSON")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.12 — experimental")
+        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.13 — experimental")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -274,7 +274,7 @@ class MainActivity : Activity() {
         return JSONObject()
             .put("schema", "desert-android-diagnostics-v1")
             .put("created_utc", Instant.now().toString())
-            .put("app_version", "0.12-experimental")
+            .put("app_version", "0.13-experimental")
             .put("android_sdk", Build.VERSION.SDK_INT)
             .put("manufacturer", Build.MANUFACTURER)
             .put("device_model", Build.MODEL)

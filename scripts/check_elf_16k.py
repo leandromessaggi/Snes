@@ -44,7 +44,7 @@ def check(path: Path) -> list[str]:
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path) as z:
             names = [n for n in z.namelist() if n.startswith("lib/arm64-v8a/") and n.endswith(".so")]
-            required = {"lib/arm64-v8a/libdesert_bridge.so", "lib/arm64-v8a/libsnes9x_libretro.so"}
+            required = {"lib/arm64-v8a/libdesert_bridge.so", "lib/arm64-v8a/libsnes9x_libretro.so", "lib/arm64-v8a/libc++_shared.so"}
             errors = [f"missing: {n}" for n in sorted(required - set(names))]
             for name in names:
                 errors.extend(validate_arm64_elf(z.read(name), name))
