@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(rom_native LANGUAGES CXX)
+add_library(rom_native SHARED native_bridge.cpp)
+set_target_properties(rom_native PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+if(ANDROID AND ANDROID_ABI STREQUAL "arm64-v8a")
+  target_link_options(rom_native PRIVATE "-Wl,-z,max-page-size=16384" "-Wl,-z,common-page-size=16384")
+endif()
