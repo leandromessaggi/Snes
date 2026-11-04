@@ -1,0 +1,64 @@
+name: ROM2Native AI - Android prototype
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/rom2native-ai]
+  pull_request:
+    branches: [feature/desert-strike-android]
+permissions:
+  contents: read
+jobs:
+  native-prototype:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test ROM extractor and AI adapter
+        run: python3 -m unittest discover -s rom2native/tests -p 'test_*.py' -v
+      - name: Test standalone C++ engine
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Werror -O2 native-demo/src/main/cpp/tests/test_flight_engine.cpp -o /tmp/native-engine-test
+          /tmp/native-engine-test
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+      - name: Set up Android SDK
+        run: |
+          set -euo pipefail
+          export ANDROID_HOME="/usr/local/lib/android/sdk"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build independent native APK
+        run: gradle :native-demo:assembleDebug --no-daemon --stacktrace
+      - name: Validate native-only Android artifact
+        run: |
+          set -euo pipefail
+          APK=native-demo/build/outputs/apk/debug/native-demo-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          unzip -l "$APK" | grep -F 'lib/arm64-v8a/librom_native.so'
+          ! unzip -l "$APK" | grep -Ei 'snes9x|libretro'
+          python3 - "$APK" <<'PY'
+          import sys,zipfile
+          from scripts.check_elf_16k import validate_arm64_elf
+          with zipfile.ZipFile(sys.argv[1]) as archive:
+              issues=validate_arm64_elf(archive.read("lib/arm64-v8a/librom_native.so"))
+          if issues: raise SystemExit(str(issues))
+          print("PASS: independent C++ runtime aligned to 16 KiB")
+          PY
+          mkdir -p dist
+          cp "$APK" dist/ROM2NativeAI-prototype-debug.apk
+          (cd dist && sha256sum ROM2NativeAI-prototype-debug.apk > SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ROM2NativeAI-Android-native-prototype
+          path: dist/
+          if-no-files-found: error
