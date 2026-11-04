@@ -35,12 +35,27 @@ class MainActivity : Activity() {
                 startActivityForResult(intent,101)
             }
         }
+        val visualButton=Button(this).apply {
+            text="Importar visual CGI (ZIP)"
+            setOnClickListener {
+                if (!view.loaded) {
+                    status.text="Importe a ROM original antes do pacote visual"
+                } else {
+                    val intent=Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="application/zip"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }
+                    startActivityForResult(intent,102)
+                }
+            }
+        }
         status=TextView(this).apply {
             text="Protótipo nativo: importe sua ROM para iniciar. Física e mapa são experimentais."
             setPadding(12,3,12,3)
         }
         view=FlightView(this,{pad})
         root.addView(importButton)
+        root.addView(visualButton)
         root.addView(status)
         root.addView(view,LinearLayout.LayoutParams(-1,0,1f))
         setContentView(root)
@@ -50,9 +65,22 @@ class MainActivity : Activity() {
             if(validate(bytes)) {
                 view.loaded=NativeEngine.importRom(bytes)
                 showStatus()
+                restoreVisualPack()
             }
         } catch (_:Exception) { }
     }
+    private fun restoreVisualPack() {
+        val saved=File(filesDir,"visualpack.zip")
+        if (!saved.isFile || !view.loaded) return
+        try {
+            val sprite=VisualPack.parse(saved.readBytes(),supportedHash)
+            check(NativeEngine.setHelicopterSprite(sprite.pixels,sprite.width,sprite.height))
+            showStatus()
+        } catch (e:Exception) {
+            status.text="Pacote visual não carregado: "+e.message
+        }
+    }
+
     private fun showStatus() {
         status.text="MVP NATIVO • sem Snes9x • regras e cenário demonstrativos • "+NativeEngine.status()
     }
@@ -95,14 +123,33 @@ class MainActivity : Activity() {
     @Deprecated("Uses Android document picker")
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
         super.onActivityResult(requestCode,resultCode,data)
-        if(requestCode!=101||resultCode!=RESULT_OK||data?.data==null)return
+        if ((requestCode!=101 && requestCode!=102) || resultCode!=RESULT_OK || data?.data==null) return
         try {
-            val raw=readRom(data.data!!)
-            require(validate(raw)){"ROM diferente da edição analisada"}
-            check(NativeEngine.importRom(raw)){"O motor nativo recusou os dados"}
-            File(filesDir,"user.sfc").writeBytes(raw)
-            view.loaded=true
-            showStatus()
+            when (requestCode) {
+                101 -> {
+                    val raw=readRom(data.data!!)
+                    require(validate(raw)){"ROM diferente da edição analisada"}
+                    check(NativeEngine.importRom(raw)){"O motor nativo recusou os dados"}
+                    File(filesDir,"user.sfc").writeBytes(raw)
+                    view.loaded=true
+                    showStatus()
+                    restoreVisualPack()
+                }
+                102 -> {
+                    check(view.loaded){"Importe a ROM original antes"}
+                    val pack=contentResolver.openInputStream(data.data!!)?.use {
+                        readCapped(it,1024*1024)
+                    } ?: error("Arquivo de pacote visual indisponível")
+                    val sprite=VisualPack.parse(pack,supportedHash)
+                    check(NativeEngine.setHelicopterSprite(sprite.pixels,sprite.width,sprite.height)){
+                        "Motor nativo não aceitou o sprite"
+                    }
+                    File(filesDir,"visualpack.zip").writeBytes(pack)
+                    showStatus()
+                    status.text += " • pacote CGI importado"
+                    view.invalidate()
+                }
+            }
         } catch(ex:Exception) {
             status.text="Falha ao importar: "+ex.message
         }
