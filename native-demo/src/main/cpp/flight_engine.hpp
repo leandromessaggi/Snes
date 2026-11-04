@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include "sprite_image.hpp"
 
 namespace romnative {
 // Independent C++ demonstration engine. It does NOT implement original game rules.
@@ -18,10 +19,14 @@ public:
         // Data-derived terrain seed, NOT a decompiled map. No ROM bytes are retained.
         uint32_t hash=2166136261u;
         for (size_t i=0;i<length;++i) hash=(hash^rom[i])*16777619u;
-        seed_=hash; ready_=true; reset(); return true;
+        seed_=hash; ready_=true; sprite_.clear(); reset(); return true;
     }
     void reset() { x_=160; y_=135; frames_=0; fireCooldown_=0; shots_.clear(); }
     bool ready() const {return ready_;}
+    bool setHelicopterSprite(const uint32_t* pixels, size_t count, int width, int height) {
+        return ready_ && sprite_.set(pixels,count,width,height);
+    }
+    bool hasHelicopterSprite() const {return sprite_.valid();}
     float x() const {return x_;}
     float y() const {return y_;}
     size_t shotCount() const {return shots_.size();}
@@ -65,13 +70,18 @@ public:
         disc(pixels,264,168,17,rgba(72,65,48));
         rect(pixels,254,156,279,167,rgba(155,132,87));
         disc(pixels,int(x_)+5,int(y_)+13,17,rgba(67,61,49));
-        // Helicopter projected shadow, tail, cabin and rotor; gameplay prototype.
-        line(pixels,int(x_),int(y_)+3,int(x_),int(y_)+25,rgba(43,45,40),3);
-        disc(pixels,int(x_),int(y_),10,rgba(38,50,47));
-        disc(pixels,int(x_)-2,int(y_)-2,7,rgba(110,144,133));
-        disc(pixels,int(x_)-3,int(y_)-3,3,rgba(170,190,184));
-        rect(pixels,int(x_)-2,int(y_)+9,int(x_)+2,int(y_)+19,rgba(53,56,51));
-        line(pixels,int(x_)-20,int(y_)-5,int(x_)+21,int(y_)+5,rgba(184,188,177),2);
+        // Helicopter shadow remains procedural. The optional RGBA sprite replaces
+        // only the demonstration helicopter; it never changes gameplay mechanics.
+        if (sprite_.valid()) {
+            sprite_.draw(pixels, WIDTH, HEIGHT, int(x_), int(y_));
+        } else {
+            line(pixels,int(x_),int(y_)+3,int(x_),int(y_)+25,rgba(43,45,40),3);
+            disc(pixels,int(x_),int(y_),10,rgba(38,50,47));
+            disc(pixels,int(x_)-2,int(y_)-2,7,rgba(110,144,133));
+            disc(pixels,int(x_)-3,int(y_)-3,3,rgba(170,190,184));
+            rect(pixels,int(x_)-2,int(y_)+9,int(x_)+2,int(y_)+19,rgba(53,56,51));
+            line(pixels,int(x_)-20,int(y_)-5,int(x_)+21,int(y_)+5,rgba(184,188,177),2);
+        }
         for(const auto& shot:shots_) {
             disc(pixels,int(shot.x),int(shot.y),2,rgba(255,205,94));
         }
@@ -97,6 +107,7 @@ private:
             disc(dst,x,y,radius,color);
         }
     }
+    SpriteImage sprite_;
     bool ready_=false;
     uint32_t seed_=0;
     float x_=160,y_=135,fireCooldown_=0;
