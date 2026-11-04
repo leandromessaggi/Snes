@@ -9,3 +9,8 @@ local.properties
 *.srm
 *.state
 **/jniLibs/**/*.so
+
+private-output/
+**/private-output/
+**/generated-assets/
+*.gguf

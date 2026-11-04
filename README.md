@@ -1,3 +1,5 @@
+**Novo projeto:** [ROM2Native AI — motor próprio e conversão CGI com IA](docs/ROM2NATIVE_AI.md). Consulte o diretório native-demo para o APK sem Snes9x. A aplicação antiga permanece intacta.
+
 # Desert Strike Android v0.13 (experimental)
 
 Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (SNES)** para Android ARM64.
