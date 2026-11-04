@@ -44,12 +44,28 @@ Java_br_com_rom2native_NativeEngine_setHelicopterSprite(
         pixels.size(),width,height) ? JNI_TRUE : JNI_FALSE;
 }
 
+extern "C" JNIEXPORT jboolean JNICALL
+Java_br_com_rom2native_NativeEngine_setHelicopterAtlas(
+        JNIEnv* env,jobject,jintArray data,jint width,jint height,jint frames){
+    if(!data || (frames!=1 && frames!=8) || width<1 || height<1 ||
+       height>128 || width>frames*128 || width%frames ||
+       env->GetArrayLength(data)!=static_cast<jsize>(width*height))
+       return JNI_FALSE;
+    std::vector<jint> pixels(static_cast<size_t>(width)*height);
+    env->GetIntArrayRegion(data,0,static_cast<jsize>(pixels.size()),pixels.data());
+    if(env->ExceptionCheck())return JNI_FALSE;
+    std::lock_guard<std::mutex> lock(mutex);
+    return engine.setHelicopterAtlas(reinterpret_cast<const uint32_t*>(pixels.data()),
+        pixels.size(),width,height,frames)?JNI_TRUE:JNI_FALSE;
+}
 extern "C" JNIEXPORT jstring JNICALL
 Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
     const auto s=std::string(engine.ready()?"MOTOR NATIVO":"SEM ROM")+
        " | frames="+std::to_string(engine.frames())+
        " | tiros="+std::to_string(engine.shotCount())+
-       " | sprite="+(engine.hasHelicopterSprite()?"personalizado":"provisorio");
+       " | sprite="+(engine.hasHelicopterSprite()?"personalizado":"provisorio")+
+       " | angulo="+std::to_string(engine.heading())+
+       " | frames_sprite="+std::to_string(engine.spriteFrames());
     return env->NewStringUTF(s.c_str());
 }

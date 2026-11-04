@@ -11,7 +11,7 @@ namespace romnative {
 // Independent C++ demonstration engine. It does NOT implement original game rules.
 constexpr int WIDTH=320, HEIGHT=240;
 constexpr uint32_t FIRE=1u<<0, UP=1u<<4, DOWN=1u<<5, LEFT=1u<<6, RIGHT=1u<<7;
-struct Shot { float x,y; };
+struct Shot { float x,y,dx,dy; };
 class FlightEngine {
 public:
     bool load(const uint8_t* rom,size_t length) {
@@ -21,12 +21,18 @@ public:
         for (size_t i=0;i<length;++i) hash=(hash^rom[i])*16777619u;
         seed_=hash; ready_=true; sprite_.clear(); reset(); return true;
     }
-    void reset() { x_=160; y_=135; frames_=0; fireCooldown_=0; shots_.clear(); }
+    void reset() { x_=160; y_=135; frames_=0; heading_=0; fireCooldown_=0; shots_.clear(); }
     bool ready() const {return ready_;}
     bool setHelicopterSprite(const uint32_t* pixels, size_t count, int width, int height) {
-        return ready_ && sprite_.set(pixels,count,width,height);
+        return ready_ && sprite_.set(pixels,count,width,height,1);
     }
     bool hasHelicopterSprite() const {return sprite_.valid();}
+    int spriteFrames() const {return sprite_.frameCount();}
+    bool setHelicopterAtlas(const uint32_t* pixels,size_t count,int width,int height,int frames){
+        return ready_ && sprite_.set(pixels,count,width,height,frames);
+    }
+    int heading() const {return heading_;}
+
     float x() const {return x_;}
     float y() const {return y_;}
     size_t shotCount() const {return shots_.size();}
@@ -37,17 +43,30 @@ public:
         float dx=((pad&RIGHT)?1.f:0.f)-((pad&LEFT)?1.f:0.f);
         float dy=((pad&DOWN)?1.f:0.f)-((pad&UP)?1.f:0.f);
         const float length=std::sqrt(dx*dx+dy*dy);
-        if(length>0) {dx/=length; dy/=length;}
+        if(length>0) {
+            // N, NE, E, SE, S, SW, W, NW in clockwise order.
+            if (dy<0) heading_ = dx>0?1:(dx<0?7:0);
+            else if(dy>0) heading_ = dx>0?3:(dx<0?5:4);
+            else heading_ = dx>0?2:6;
+            dx/=length; dy/=length;
+        }
         x_=std::clamp(x_+dx*125.f*dt,20.f,WIDTH-20.f);
         y_=std::clamp(y_+dy*110.f*dt,28.f,HEIGHT-25.f);
         fireCooldown_=std::max(0.f,fireCooldown_-dt);
-        if((pad&FIRE) && fireCooldown_==0.f) {
-            shots_.push_back({x_,y_-16.f});
+        constexpr float D=0.7071067811865475f;
+        constexpr float headingDx[8]={0,D,1,D,0,-D,-1,-D};
+        constexpr float headingDy[8]={-1,-D,0,D,1,D,0,-D};
+        if((pad&FIRE) && fireCooldown_==0.f){
+            const float hx=headingDx[heading_], hy=headingDy[heading_];
+            shots_.push_back({x_+hx*16.f,y_+hy*16.f,hx,hy});
             fireCooldown_=0.17f;
         }
-        for(auto& shot:shots_) shot.y-=210.f*dt;
+        for(auto& shot:shots_){
+            shot.x+=shot.dx*210.f*dt;
+            shot.y+=shot.dy*210.f*dt;
+        }
         shots_.erase(std::remove_if(shots_.begin(),shots_.end(),
-            [](const Shot& s){return s.y<0;}),shots_.end());
+            [](const Shot& s){return s.x<0 || s.x>=WIDTH || s.y<0 || s.y>=HEIGHT;}),shots_.end());
         ++frames_;
     }
     void render(uint32_t* pixels,size_t count) const {
@@ -73,7 +92,7 @@ public:
         // Helicopter shadow remains procedural. The optional RGBA sprite replaces
         // only the demonstration helicopter; it never changes gameplay mechanics.
         if (sprite_.valid()) {
-            sprite_.draw(pixels, WIDTH, HEIGHT, int(x_), int(y_));
+            sprite_.draw(pixels, WIDTH, HEIGHT, int(x_), int(y_), heading_);
         } else {
             line(pixels,int(x_),int(y_)+3,int(x_),int(y_)+25,rgba(43,45,40),3);
             disc(pixels,int(x_),int(y_),10,rgba(38,50,47));
@@ -108,6 +127,7 @@ private:
         }
     }
     SpriteImage sprite_;
+    int heading_=0;
     bool ready_=false;
     uint32_t seed_=0;
     float x_=160,y_=135,fireCooldown_=0;

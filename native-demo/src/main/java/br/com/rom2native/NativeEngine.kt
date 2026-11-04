@@ -6,5 +6,6 @@ object NativeEngine {
     external fun step(mask:Int,seconds:Float)
     external fun setHelicopterSprite(argb:IntArray,width:Int,height:Int):Boolean
     external fun draw(pixels:IntArray)
+    external fun setHelicopterAtlas(argb:IntArray,width:Int,height:Int,frames:Int):Boolean
     external fun status():String
 }

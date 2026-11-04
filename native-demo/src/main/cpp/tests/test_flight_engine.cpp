@@ -39,5 +39,29 @@ int main() {
     assert(e.x()>=20 && e.y()<=romnative::HEIGHT-25);
     e.reset();
     assert(e.frames()==0 && e.shotCount()==0);
+    assert(e.heading()==0);
+    // Atlas of eight uniquely colored 3x3 frames, one direction per cell.
+    uint32_t atlas[3*8*3]{};
+    for(int y=0;y<3;++y)for(int direction=0;direction<8;++direction)
+        atlas[y*24+direction*3+1]=0xff000010u+static_cast<uint32_t>(direction);
+    assert(!e.setHelicopterAtlas(atlas,72,24,3,7));
+    assert(e.setHelicopterAtlas(atlas,72,24,3,8));
+    assert(e.spriteFrames()==8);
+    const uint32_t cmds[8]={romnative::UP,romnative::UP|romnative::RIGHT,
+        romnative::RIGHT,romnative::RIGHT|romnative::DOWN,romnative::DOWN,
+        romnative::DOWN|romnative::LEFT,romnative::LEFT,romnative::LEFT|romnative::UP};
+    for(int i=0;i<8;++i){
+        e.step(cmds[i],0.016f);
+        assert(e.heading()==i);
+        e.render(frame.data(),frame.size());
+        assert(frame[int(e.y())*romnative::WIDTH+int(e.x())]==
+            0xff000010u+static_cast<uint32_t>(i));
+    }
+    e.step(0,0.016f);
+    assert(e.heading()==7);
+    // The original v1 single-image API still works after an eight-frame pack.
+    assert(e.setHelicopterSprite(picture,9,3,3));
+    assert(e.spriteFrames()==1);
+
     std::puts("PASS native flight engine (no emulator dependency)");
 }
