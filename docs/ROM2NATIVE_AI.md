@@ -84,3 +84,7 @@ O renderizador C++ aceita uma imagem RGBA do helicóptero, com transparência, i
 
 Nunca inclua ROM comercial, áudio ou gráficos extraídos no GitHub.
 Revise autorização de uso da ROM e as políticas do provedor de IA.
+
+## Animação direcional v0.3
+
+O motor agora aceita folhas de sprites com oito orientações e suporta disparo direcional. O pacote visual v2 é vinculado ao SHA-256 da ROM. Pacotes v1 de imagem única ainda funcionam. Consulte [o guia de sprites de oito ângulos](ANIMATED_SPRITES_V03.md). O teste usa arte procedural, não gerada por IA ou extraída do jogo.
