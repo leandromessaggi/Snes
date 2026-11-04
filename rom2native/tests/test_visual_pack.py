@@ -15,6 +15,38 @@ def png_rgba(w=16,h=12):
     return b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",ihdr)+chunk(b"IDAT",zlib.compress(raw))+chunk(b"IEND",b"")
 
 class VisualPackTests(unittest.TestCase):
+    def test_animated_eight_frames(self):
+        rom=b"ROM test"
+        image=png_rgba(64,12)
+        # Default parser keeps legacy 128px-width cap.
+        with self.assertRaises(ValueError):
+            png_rgba_info(png_rgba(256,12))
+        atlas=png_rgba(256,12)
+        packed=make_pack(rom,atlas,frames=8)
+        meta=inspect_pack(packed,hashlib.sha256(rom).hexdigest())
+        self.assertEqual(meta["format"],"rom2native-visual-v2")
+        self.assertEqual(meta["asset"]["frame_width"],32)
+        self.assertEqual(meta["asset"]["frames"],8)
+        self.assertEqual(meta["asset"]["directions"],["N","NE","E","SE","S","SW","W","NW"])
+        with self.assertRaises(ValueError):
+            make_pack(rom,png_rgba(129,12),frames=8)
+        with self.assertRaises(ValueError):
+            make_pack(rom,atlas,frames=7)
+
+    def test_reject_wrong_direction_order(self):
+        rom=b"ROM test"
+        original=make_pack(rom,png_rgba(256,16),frames=8)
+        with zipfile.ZipFile(io.BytesIO(original)) as z:
+            manifest=json.loads(z.read("manifest.json"))
+            image=z.read("helicopter.png")
+        manifest["asset"]["directions"][0]="E"
+        stream=io.BytesIO()
+        with zipfile.ZipFile(stream,"w") as z:
+            z.writestr("manifest.json",json.dumps(manifest))
+            z.writestr("helicopter.png",image)
+        with self.assertRaises(ValueError):
+            inspect_pack(stream.getvalue(),hashlib.sha256(rom).hexdigest())
+
     def test_build_and_inspect(self):
         rom=bytes([7])*65536
         image=png_rgba()
