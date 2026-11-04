@@ -70,6 +70,10 @@ Abra o APK e importe a ROM original para iniciar a demonstração nativa.
 A ROM fica somente nos arquivos privados do aparelho; não é
 distribuída no APK.
 
+## V0.2: sprite visual importável no jogo
+
+O renderizador C++ aceita uma imagem RGBA do helicóptero, com transparência, importada de um ZIP validado no Android. O pipeline de IA ainda depende de um ComfyUI configurado e de aprovação humana. Veja [VISUAL_PACKS.md](VISUAL_PACKS.md).
+
 ## Roadmap técnico
 
 1. Extrair VRAM/paletas em execução para comprovar o formato dos sprites reais.
