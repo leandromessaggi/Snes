@@ -146,7 +146,7 @@ class MainActivity : Activity() {
                     }
                     File(filesDir,"visualpack.zip").writeBytes(pack)
                     showStatus()
-                    status.text += " • pacote CGI importado"
+                    status.text = status.text.toString() + " • pacote CGI importado"
                     view.invalidate()
                 }
             }
