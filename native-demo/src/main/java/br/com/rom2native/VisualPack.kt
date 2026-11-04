@@ -11,11 +11,13 @@ import java.util.zip.ZipInputStream
  * Never extracts arbitrary files or executes mod code.
  */
 object VisualPack {
-    data class Sprite(val pixels: IntArray, val width: Int, val height: Int)
-    private const val MAX_PACK = 1024 * 1024
-    private const val MAX_IMAGE = 512 * 1024
+    data class Sprite(val pixels: IntArray, val width: Int, val height: Int, val frames: Int)
+    private const val MAX_PACK = 3 * 1024 * 1024
+    private const val MAX_IMAGE = 2 * 1024 * 1024
     private const val MAX_MANIFEST = 8192
     private const val FORMAT = "rom2native-visual-v1"
+    private const val FORMAT_8 = "rom2native-visual-v2"
+    private val DIRECTIONS = arrayOf("N","NE","E","SE","S","SW","W","NW")
 
     private fun readLimited(zip: ZipInputStream, max: Int): ByteArray {
         val buffer = ByteArray(8192)
@@ -35,7 +37,7 @@ object VisualPack {
             .joinToString("") { "%02x".format(it) }
 
     fun parse(bytes: ByteArray, expectedRomHash: String): Sprite {
-        require(bytes.size in 1..MAX_PACK) { "Pacote excede 1 MiB" }
+        require(bytes.size in 1..MAX_PACK) { "Pacote excede 3 MiB" }
         val entries = linkedMapOf<String, ByteArray>()
         ZipInputStream(bytes.inputStream()).use { zip ->
             while (true) {
@@ -55,7 +57,9 @@ object VisualPack {
             "Manifesto ou imagem ausente"
         }
         val manifest = JSONObject(String(entries.getValue("manifest.json"), Charsets.UTF_8))
-        require(manifest.optString("format") == FORMAT) { "Versão de pacote incompatível" }
+        val format = manifest.optString("format")
+        require(format == FORMAT || format == FORMAT_8) { "Versão de pacote incompatível" }
+        val frames = if (format == FORMAT_8) 8 else 1
         require(manifest.optString("rom_sha256") == expectedRomHash) {
             "Pacote destinado a outra revisão da ROM"
         }
@@ -73,9 +77,25 @@ object VisualPack {
         BitmapFactory.decodeByteArray(png, 0, png.size, bounds)
         val w = bounds.outWidth
         val h = bounds.outHeight
-        require(w in 1..128 && h in 1..128 &&
-            w == asset.getInt("width") && h == asset.getInt("height")) {
+        require(w in 1..(128 * frames) && h in 1..128 && w % frames == 0 &&
+            w / frames in 1..128 && w == asset.getInt("width") &&
+            h == asset.getInt("height")) {
             "Dimensões do PNG incompatíveis com o manifesto"
+        }
+        if (frames == 8) {
+            require(asset.optInt("frames") == 8 &&
+                asset.optString("layout") == "horizontal" &&
+                asset.optInt("frame_width") == w / 8 &&
+                asset.optInt("frame_height") == h) { "Formato de atlas incompatível" }
+            val dirs = asset.getJSONArray("directions")
+            require(dirs.length() == DIRECTIONS.size &&
+                DIRECTIONS.indices.all { i -> dirs.getString(i) == DIRECTIONS[i] }) {
+                "Ordem das direções deve ser N,NE,E,SE,S,SW,W,NW"
+            }
+        } else {
+            require(!asset.has("frames") || asset.getInt("frames") == 1) {
+                "Pacote visual v1 só aceita um quadro"
+            }
         }
         val image = BitmapFactory.decodeByteArray(png, 0, png.size)
             ?: error("Não foi possível decodificar a imagem")
@@ -83,8 +103,21 @@ object VisualPack {
             require(image.width == w && image.height == h) { "Imagem inconsistente" }
             val pixels = IntArray(w * h)
             image.getPixels(pixels, 0, w, 0, 0, w, h)
-            require(pixels.any { it ushr 24 != 0 }) { "Sprite totalmente transparente" }
-            return Sprite(pixels, w, h)
+            val frameWidth = w / frames
+            for (index in 0 until frames) {
+                var hasOpaquePixel = false
+                for (y in 0 until h) {
+                    for (x in 0 until frameWidth) {
+                        if (pixels[y * w + index * frameWidth + x] ushr 24 != 0) {
+                            hasOpaquePixel = true
+                            break
+                        }
+                    }
+                    if (hasOpaquePixel) break
+                }
+                require(hasOpaquePixel) { "Quadro do helicóptero transparente: $index" }
+            }
+            return Sprite(pixels, w, h, frames)
         } finally {
             image.recycle()
         }

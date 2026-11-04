@@ -74,7 +74,7 @@ class MainActivity : Activity() {
         if (!saved.isFile || !view.loaded) return
         try {
             val sprite=VisualPack.parse(saved.readBytes(),supportedHash)
-            check(NativeEngine.setHelicopterSprite(sprite.pixels,sprite.width,sprite.height))
+            check(NativeEngine.setHelicopterAtlas(sprite.pixels,sprite.width,sprite.height,sprite.frames))
             showStatus()
         } catch (e:Exception) {
             status.text="Pacote visual não carregado: "+e.message
@@ -141,7 +141,7 @@ class MainActivity : Activity() {
                         readCapped(it,1024*1024)
                     } ?: error("Arquivo de pacote visual indisponível")
                     val sprite=VisualPack.parse(pack,supportedHash)
-                    check(NativeEngine.setHelicopterSprite(sprite.pixels,sprite.width,sprite.height)){
+                    check(NativeEngine.setHelicopterAtlas(sprite.pixels,sprite.width,sprite.height,sprite.frames)){
                         "Motor nativo não aceitou o sprite"
                     }
                     File(filesDir,"visualpack.zip").writeBytes(pack)
