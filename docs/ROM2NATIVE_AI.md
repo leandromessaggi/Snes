@@ -96,3 +96,10 @@ Ferramenta: rom2native/scan_tiles.py. Exemplo:
     python3 -m rom2native.scan_tiles "Desert Strike - Return to the Gulf (U).zip" --out private-output/tile-candidates --step 0x2000 --top 24
 
 Gera candidate-contact.png (miniaturas dos 24 candidatos mais bem pontuados) e candidate-index.json (offsets, 2/4bpp, proporção de tiles vazios e similaridade entre pixels adjacentes). Essa análise é apenas heurística. Dados comprimidos, código e tabelas podem produzir falsos positivos; nenhuma sprite de helicóptero foi identificada ou descomprimida com segurança nessa etapa. Não publique arquivos derivados da ROM comercial.
+
+## v0.4 — busca gráfica + pacote CGI experimental
+
+- Scanner local novo: `python3 -m rom2native.scan_tiles ...` procura dados brutos 2bpp/4bpp por toda a ROM e grava uma folha de contato e um índice com posições e scores. O resultado é **heurístico**, ainda não confirma gráficos reais do jogo.
+- Pacote visual CGI experimental gerado à parte: oito quadros do helicóptero adaptados de arte conceitual gerada por IA. O arquivo ZIP utiliza o formato `rom2native-visual-v2` já aceito pelo Android, sem incluir dados da ROM.
+- O protótipo nativo mantém mapa, movimento e projéteis demonstrativos; a recriação fiel da campanha e a geração de gráficos de todas as fases continuam pendentes.
+- O APK v0.4 compila o motor independente da ROM, não inclui Snes9x e continua exigindo importação local da ROM para ativar a demonstração.
