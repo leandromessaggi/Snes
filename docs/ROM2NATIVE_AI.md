@@ -88,3 +88,11 @@ Revise autorização de uso da ROM e as políticas do provedor de IA.
 ## Animação direcional v0.3
 
 O motor agora aceita folhas de sprites com oito orientações e suporta disparo direcional. O pacote visual v2 é vinculado ao SHA-256 da ROM. Pacotes v1 de imagem única ainda funcionam. Consulte [o guia de sprites de oito ângulos](ANIMATED_SPRITES_V03.md). O teste usa arte procedural, não gerada por IA ou extraída do jogo.
+
+## Busca automática de candidatos gráficos na ROM
+
+Ferramenta: rom2native/scan_tiles.py. Exemplo:
+
+    python3 -m rom2native.scan_tiles "Desert Strike - Return to the Gulf (U).zip" --out private-output/tile-candidates --step 0x2000 --top 24
+
+Gera candidate-contact.png (miniaturas dos 24 candidatos mais bem pontuados) e candidate-index.json (offsets, 2/4bpp, proporção de tiles vazios e similaridade entre pixels adjacentes). Essa análise é apenas heurística. Dados comprimidos, código e tabelas podem produzir falsos positivos; nenhuma sprite de helicóptero foi identificada ou descomprimida com segurança nessa etapa. Não publique arquivos derivados da ROM comercial.
