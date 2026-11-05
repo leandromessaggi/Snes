@@ -320,6 +320,17 @@ Java_br_com_desertstrike_NativeCore_loadRam(JNIEnv* env,jobject,jbyteArray data)
     env->GetByteArrayRegion(data,0,static_cast<jsize>(n),dest);
     return JNI_TRUE;
 }
+// The pinned Snes9x Libretro core exposes 64 KiB via RETRO_MEMORY_VIDEO_RAM (3).
+// This data is for local reverse engineering only; not used by the native port.
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_br_com_desertstrike_NativeCore_snapshotVram(JNIEnv* env,jobject) {
+    std::lock_guard<std::mutex> lock(coreMutex);
+    if (!loaded || !api.get_memory_data || !api.get_memory_size) return nullptr;
+    const size_t n=api.get_memory_size(3);
+    const auto* vram=static_cast<const uint8_t*>(api.get_memory_data(3));
+    if (!vram || n!=64u*1024u) return nullptr;
+    return javaBytes(env,vram,n);
+}
 extern "C" JNIEXPORT jboolean JNICALL
 Java_br_com_desertstrike_NativeCore_traceStart(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(coreMutex);

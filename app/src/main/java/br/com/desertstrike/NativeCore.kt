@@ -14,6 +14,7 @@ object NativeCore {
     external fun loadState(state: ByteArray): Boolean
     external fun saveRam(): ByteArray?
     external fun loadRam(data: ByteArray): Boolean
+    external fun snapshotVram(): ByteArray?
     external fun traceStart(): Boolean
     external fun traceStop(): String?
 }
