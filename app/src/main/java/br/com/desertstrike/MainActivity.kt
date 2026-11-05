@@ -18,6 +18,10 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.Toast
 import java.io.File
+import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.max
@@ -46,12 +50,14 @@ class MainActivity : Activity() {
     private var remapTarget: Int? = null
     private var traceExport: String? = null
     private var diagnosticExport: String? = null
+    private var referenceExport: ByteArray? = null
 
     private val PICK_ROM = 201
     private val PICK_IPS = 202
     private val PICK_PACK = 203
     private val SAVE_TRACE = 204
     private val SAVE_DIAGNOSTIC = 205
+    private val SAVE_REFERENCE = 206
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -174,8 +180,8 @@ class MainActivity : Activity() {
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico",
-            "Exportar diagnóstico JSON")
-        AlertDialog.Builder(this).setTitle("Desert Strike Android v0.13 — experimental")
+            "Exportar diagnóstico JSON", "Capturar VRAM + quadro (ZIP)")
+        AlertDialog.Builder(this).setTitle("Desert Strike Research v0.14 — VRAM")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -218,6 +224,15 @@ class MainActivity : Activity() {
                             picker(SAVE_DIAGNOSTIC)
                         } catch (e: Exception) {
                             toast("Falha ao preparar diagnóstico: " + e.message)
+                            showMenu()
+                        }
+                    }
+                    15 -> {
+                        try {
+                            referenceExport = createVramReference()
+                            picker(SAVE_REFERENCE)
+                        } catch (e: Exception) {
+                            toast("Falha na captura da VRAM: " + e.message)
                             showMenu()
                         }
                     }
@@ -274,7 +289,7 @@ class MainActivity : Activity() {
         return JSONObject()
             .put("schema", "desert-android-diagnostics-v1")
             .put("created_utc", Instant.now().toString())
-            .put("app_version", "0.13-experimental")
+            .put("app_version", "0.14-vram-research")
             .put("android_sdk", Build.VERSION.SDK_INT)
             .put("manufacturer", Build.MANUFACTURER)
             .put("device_model", Build.MODEL)
@@ -290,12 +305,49 @@ class MainActivity : Activity() {
             .toString(2)
     }
 
+    private fun createVramReference(): ByteArray {
+        require(active.get()) { "Inicie e jogue antes de capturar a VRAM" }
+        val vram = NativeCore.snapshotVram() ?: error("VRAM indisponível neste núcleo")
+        require(vram.size == 64*1024) { "Tamanho inesperado de VRAM" }
+        val frame = gameView.snapshotReferenceFrame() ?: error("Nenhum quadro de vídeo capturado")
+        require(frame.png.size < 4*1024*1024) { "Quadro PNG grande demais" }
+        val metrics = JSONObject(NativeCore.stats())
+        val hash = MessageDigest.getInstance("SHA-256")
+        fun digest(bytes: ByteArray): String =
+            hash.digest(bytes).joinToString("") { "%02x".format(it) }
+        val meta = JSONObject()
+            .put("format", "rom2native-vram-capture-v1")
+            .put("captured_utc", Instant.now().toString())
+            .put("rom_sha256", currentHash)
+            .put("frame", metrics.optLong("frames"))
+            .put("vram_bytes", vram.size)
+            .put("vram_sha256", digest(vram))
+            .put("frame_width", frame.width)
+            .put("frame_height", frame.height)
+            .put("frame_png_sha256", digest(frame.png))
+            .put("coherence", "paused_near_same_frame_not_atomic")
+            .put("note", "64KiB VRAM + rendered frame; CGRAM palettes and OAM are not included")
+        val result = ByteArrayOutputStream()
+        ZipOutputStream(result).use { zip ->
+            fun append(name: String, bytes: ByteArray) {
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+            append("manifest.json", meta.toString(2).toByteArray(Charsets.UTF_8))
+            append("vram.bin", vram)
+            append("frame.png", frame.png)
+        }
+        return result.toByteArray()
+    }
+
     private fun picker(type: Int) {
-        val intent = Intent(if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
+        val intent = Intent(if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC || type == SAVE_REFERENCE) Intent.ACTION_CREATE_DOCUMENT else Intent.ACTION_OPEN_DOCUMENT)
         intent.addCategory(Intent.CATEGORY_OPENABLE)
-        intent.type = if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) "application/json" else "*/*"
+        intent.type = if (type == SAVE_REFERENCE) "application/zip" else if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) "application/json" else "*/*"
         if (type == SAVE_TRACE) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-wram-trace.json")
         if (type == SAVE_DIAGNOSTIC) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-diagnostics.json")
+        if (type == SAVE_REFERENCE) intent.putExtra(Intent.EXTRA_TITLE, "rom2native-vram-reference.zip")
         @Suppress("DEPRECATION")
         startActivityForResult(intent, type)
     }
@@ -324,6 +376,13 @@ class MainActivity : Activity() {
                     val pack = contentResolver.openInputStream(uri)?.use { ModPack.parse(it, rom ?: error("ROM ausente")) }
                         ?: error("ZIP ausente")
                     installPatches(pack.patches.map { it.label to it.bytes })
+                }
+                SAVE_REFERENCE -> {
+                    val dataBytes = referenceExport ?: error("Captura indisponível")
+                    contentResolver.openOutputStream(uri, "w")?.use { it.write(dataBytes) }
+                        ?: error("Não foi possível gravar a referência")
+                    referenceExport = null
+                    toast("VRAM e quadro de vídeo exportados")
                 }
                 SAVE_DIAGNOSTIC -> {
                     val text = diagnosticExport ?: error("Diagnóstico ausente")
