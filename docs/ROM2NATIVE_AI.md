@@ -103,3 +103,7 @@ Gera candidate-contact.png (miniaturas dos 24 candidatos mais bem pontuados) e c
 - Pacote visual CGI experimental gerado à parte: oito quadros do helicóptero adaptados de arte conceitual gerada por IA. O arquivo ZIP utiliza o formato `rom2native-visual-v2` já aceito pelo Android, sem incluir dados da ROM.
 - O protótipo nativo mantém mapa, movimento e projéteis demonstrativos; a recriação fiel da campanha e a geração de gráficos de todas as fases continuam pendentes.
 - O APK v0.4 compila o motor independente da ROM, não inclui Snes9x e continua exigindo importação local da ROM para ativar a demonstração.
+
+## v0.5 — exportação de referência visual do jogo original
+
+A ferramenta auxiliar **Desert Strike Research v0.14** (Snes9x somente durante a engenharia reversa) exporta os 64KiB da VRAM e o quadro atual PNG em um ZIP. O conversor `rom2native.vram_reference` analisa as páginas de tiles 2/4bpp e compara capturas para descobrir áreas que mudam. Não há CGRAM/OAM nem reconstrução fiel das missões nesta etapa. Instruções: [Captura de VRAM](VRAM_CAPTURE.md).
