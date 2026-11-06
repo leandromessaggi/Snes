@@ -126,7 +126,8 @@ def resolve_objsel(capture,base,name_select,size_mode):
     if None not in (base,name_select,size_mode):
         return (base,name_select,size_mode),"user-supplied"
     # Capture v3 with known OBSEL register can be supported in the next step.
-    if capture.manifest["rom_sha256"]==KNOWN_SHA:
+    if (capture.manifest["rom_sha256"]==KNOWN_SHA and
+            capture.manifest.get("frame") in (2027,2244,2632,2751,3237)):
         return (0,0,0),"validated-five-captures-opening-sequence-only"
     raise ValueError("Unrecognized ROM: specify --obj-base, --name-select and --size-mode")
 

@@ -11,8 +11,8 @@ class OBJReconstructionTests(unittest.TestCase):
         self.assertEqual(tile_4bpp(bytes(data),0)[0],15)
         self.assertEqual(tile_4bpp(bytes(data),0)[1],0)
         self.assertEqual(obj_tile_address(0x10f,7,0,0,0),0x2000+15*32)
-        self.assertEqual(obj_tile_address(0x10f,8,8,0,0),0x2000+0*32)
-        self.assertEqual(obj_tile_address(0x00f,8,8,0x4000,0),0x4000)
+        self.assertEqual(obj_tile_address(0x10f,8,8,0,0),0x2000+16*32)
+        self.assertEqual(obj_tile_address(0x00f,8,8,0x4000,0),0x4000+16*32)
     def test_png_rgba_structure(self):
         result=pack_rgba_png(1,1,bytes([255,0,0,255]))
         self.assertTrue(result.startswith(b"\x89PNG\r\n\x1a\n"))
@@ -41,7 +41,7 @@ class OBJReconstructionTests(unittest.TestCase):
         cap=SimpleNamespace(manifest={"rom_sha256":"b"*64})
         with self.assertRaises(ValueError): resolve_objsel(cap,None,None,None)
         self.assertEqual(resolve_objsel(cap,0,0,0)[0],(0,0,0))
-        known=SimpleNamespace(manifest={"rom_sha256":"606abf536440173ae36466db360c7db6b474beb7a105c8a62bc74a54cbe1c38b"})
+        known=SimpleNamespace(manifest={"rom_sha256":"606abf536440173ae36466db360c7db6b474beb7a105c8a62bc74a54cbe1c38b","frame":2027})
         self.assertEqual(resolve_objsel(known,None,None,None)[0],(0,0,0))
 
 if __name__=="__main__":
