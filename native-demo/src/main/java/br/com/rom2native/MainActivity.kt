@@ -162,6 +162,15 @@ class MainActivity : Activity() {
             status.text="Falha ao importar: "+ex.message
         }
     }
+    fun restartMission() {
+        if(!view.loaded)return
+        NativeEngine.restartMission()
+        view.touchMask=0
+        down.clear()
+        pad=0
+        showStatus()
+        view.invalidate()
+    }
     fun setTouchMask(mask:Int) {
         pad=mask or keyMask()
     }
@@ -178,6 +187,10 @@ class MainActivity : Activity() {
         return bits
     }
     override fun onKeyDown(code:Int,event:KeyEvent):Boolean {
+        if(code==KeyEvent.KEYCODE_BUTTON_START){
+            restartMission()
+            return true
+        }
         if (code in supportedKeys) {
             down.add(code)
             pad=pad or keyMask()

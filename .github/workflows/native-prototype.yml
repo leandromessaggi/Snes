@@ -19,6 +19,8 @@ jobs:
         run: |
           g++ -std=c++17 -Wall -Wextra -Werror -O2 native-demo/src/main/cpp/tests/test_flight_engine.cpp -o /tmp/native-engine-test
           /tmp/native-engine-test
+          g++ -std=c++17 -Wall -Wextra -Werror -O2 native-demo/src/main/cpp/tests/test_combat_mission.cpp -o /tmp/native-combat-test
+          /tmp/native-combat-test
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -55,10 +57,10 @@ jobs:
           print("PASS: independent C++ runtime aligned to 16 KiB")
           PY
           mkdir -p dist
-          cp "$APK" dist/ROM2NativeAI-v0.6-cgi-scene-debug.apk
-          (cd dist && sha256sum ROM2NativeAI-v0.6-cgi-scene-debug.apk > SHA256SUMS.txt)
+          cp "$APK" dist/ROM2NativeAI-v0.7-native-combat-debug.apk
+          (cd dist && sha256sum ROM2NativeAI-v0.7-native-combat-debug.apk > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: ROM2NativeAI-v0.6-cgi-scene
+          name: ROM2NativeAI-v0.7-native-combat
           path: dist/
           if-no-files-found: error
