@@ -119,3 +119,32 @@ não carrega nem depende do núcleo Snes9x.
 ## v0.7 — primeiros sprites originais no motor Android independente
 
 O helicóptero foi reconstruído a partir de cinco capturas reais de VRAM, CGRAM e OAM. Os pixels visíveis coincidem com as máscaras extraídas das screenshots nos cinco frames analisados (646, 636, 497, 638, 643 pixels). Veja [Reconstrução OBJ](OBJ_RECONSTRUCTION.md). O aplicativo nativo v0.5 importa os sprites por pacote visual v1, com um quadro original por pacote, sem Snes9x ou Libretro. O botão agora diz **Importar pacote visual (ZIP)** para distinguir gráficos originais de arte CGI ainda pendente. Ainda não há campanha nativa ou sprites CGI definitivos.
+
+
+## v0.7 — combate e objetivo demonstrativos no C++ independente
+
+O motor `native-demo` agora inclui `combat_mission.hpp`, uma simulação
+de combate **original e experimental**, que não é o algoritmo de missão
+extraído de Desert Strike. Ela adiciona quatro alvos desenhados pelo motor,
+cada um com resistência, dois deles com disparos direcionados ao helicóptero.
+Os projéteis do jogador têm detecção de acerto circular, os inimigos podem
+ser destruídos, o helicóptero tem 100 pontos de vida, invulnerabilidade
+temporária após dano, explosões e estados de vitória e derrota.
+
+O HUD do aplicativo Android mostra `VIDA` e `ALVOS` em tempo real.
+Toque **REINICIAR** no canto superior direito, ou use START no controle
+físico, para reiniciar a demonstração sem perder a ROM e os assets importados.
+
+O pacote visual v3 de helicóptero + cenário **continua compatível**.
+Os quatro alvos são renderizados sobre o fundo importado. Veículos ou
+edifícios que já estejam desenhados no fundo CGI são decoração estática,
+não objetos com colisão. Dessa forma não devemos confundir o cenário
+conceitual com o verdadeiro mapa de missão de Desert Strike.
+
+Todos os testes do módulo de combate usam dados sintéticos e determinísticos,
+sem ROM. Ainda não há scripts originais de missão, mapa real,
+inteligência artificial, tropas, veículos, colisões e física fiéis.
+
+Teste: importe a ROM original e o mesmo pacote visual v3 da versão anterior.
+Use as setas para direcionar o helicóptero, FIRE para disparar e destrua
+os quatro alvos. Para repetir, use REINICIAR no HUD.
