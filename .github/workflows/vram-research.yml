@@ -52,6 +52,8 @@ jobs:
           git -C /tmp/snes9x fetch --depth 1 origin "$SNES9X_REVISION"
           git -C /tmp/snes9x checkout --detach "$SNES9X_REVISION"
           test "$(git -C /tmp/snes9x rev-parse HEAD)" = "$SNES9X_REVISION"
+          # Research-only extension: expose PPU.CGDATA and PPU.OAMData.
+          python3 scripts/patch_snes9x_research.py /tmp/snes9x/libretro/libretro.cpp
           NDK="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin"
           make -C /tmp/snes9x/libretro -j2 platform=unix-arm64 \
             CC="$NDK/aarch64-linux-android26-clang" \
