@@ -83,5 +83,15 @@ int main() {
     assert(e.load(rom.data(),rom.size()));
     assert(!e.hasScene());
 
+    // At start, face east and shoot the target at (250,132) while stationary.
+    e.step(romnative::RIGHT,0.001f);
+    for(int n=0;n<70;++n)e.step(romnative::FIRE,0.016f);
+    assert(e.mission().destroyed()>=1);
+    assert(e.mission().remaining()<=3);
+    assert(e.mission().health()>0);
+    e.restartMission();
+    assert(e.mission().health()==100 && e.mission().destroyed()==0);
+    assert(e.x()==160.f && e.y()==135.f);
+    assert(e.hasScene()==false);
     std::puts("PASS native flight engine (no emulator dependency)");
 }

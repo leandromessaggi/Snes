@@ -75,6 +75,27 @@ Java_br_com_rom2native_NativeEngine_clearSceneImage(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
     engine.clearScene();
 }
+extern "C" JNIEXPORT void JNICALL
+Java_br_com_rom2native_NativeEngine_restartMission(JNIEnv*,jobject) {
+    std::lock_guard<std::mutex> lock(mutex);
+    engine.restartMission();
+}
+
+extern "C" JNIEXPORT jintArray JNICALL
+Java_br_com_rom2native_NativeEngine_missionStats(JNIEnv* env,jobject) {
+    std::array<jint,4> stats{};
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        const auto& mission=engine.mission();
+        stats={mission.health(),mission.destroyed(),
+               romnative::CombatMission::TARGET_COUNT,
+               static_cast<jint>(mission.state())};
+    }
+    auto result=env->NewIntArray(4);
+    if(result)env->SetIntArrayRegion(result,0,4,stats.data());
+    return result;
+}
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -84,6 +105,8 @@ Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
        " | sprite="+(engine.hasHelicopterSprite()?"personalizado":"provisorio")+
        " | angulo="+std::to_string(engine.heading())+
        " | frames_sprite="+std::to_string(engine.spriteFrames())+
-       " | cenario="+(engine.hasScene()?"personalizado":"provisorio");
+       " | cenario="+(engine.hasScene()?"personalizado":"provisorio")+
+       " | HP="+std::to_string(engine.mission().health())+
+       " | destruidos="+std::to_string(engine.mission().destroyed());
     return env->NewStringUTF(s.c_str());
 }

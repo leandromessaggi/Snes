@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <vector>
 #include "sprite_image.hpp"
+#include "combat_mission.hpp"
 
 namespace romnative {
 // Independent C++ demonstration engine. It does NOT implement original game rules.
@@ -21,7 +22,12 @@ public:
         for (size_t i=0;i<length;++i) hash=(hash^rom[i])*16777619u;
         seed_=hash; ready_=true; sprite_.clear(); scene_.clear(); reset(); return true;
     }
-    void reset() { x_=160; y_=135; frames_=0; heading_=0; fireCooldown_=0; shots_.clear(); }
+    void reset() {
+        x_=160; y_=135; frames_=0; heading_=0; fireCooldown_=0;
+        shots_.clear(); mission_.reset();
+    }
+    void restartMission(){if(ready_)reset();}
+    const CombatMission& mission()const{return mission_;}
     bool ready() const {return ready_;}
     bool setHelicopterSprite(const uint32_t* pixels, size_t count, int width, int height) {
         return ready_ && sprite_.set(pixels,count,width,height,1);
@@ -50,8 +56,12 @@ public:
     size_t shotCount() const {return shots_.size();}
     uint64_t frames() const {return frames_;}
     void step(uint32_t pad,float seconds) {
-        if(!ready_) return;
+        if(!ready_ || !std::isfinite(seconds)) return;
         const float dt=std::clamp(seconds,0.0f,0.05f);
+        if(mission_.state()!=CombatMission::State::Playing){
+            mission_.update(dt,x_,y_); // fade existing explosions only
+            return;
+        }
         float dx=((pad&RIGHT)?1.f:0.f)-((pad&LEFT)?1.f:0.f);
         float dy=((pad&DOWN)?1.f:0.f)-((pad&UP)?1.f:0.f);
         const float length=std::sqrt(dx*dx+dy*dy);
@@ -68,7 +78,7 @@ public:
         constexpr float D=0.7071067811865475f;
         constexpr float headingDx[8]={0,D,1,D,0,-D,-1,-D};
         constexpr float headingDy[8]={-1,-D,0,D,1,D,0,-D};
-        if((pad&FIRE) && fireCooldown_==0.f){
+        if((pad&FIRE) && fireCooldown_==0.f && shots_.size()<64){
             const float hx=headingDx[heading_], hy=headingDy[heading_];
             shots_.push_back({x_+hx*16.f,y_+hy*16.f,hx,hy});
             fireCooldown_=0.17f;
@@ -78,7 +88,11 @@ public:
             shot.y+=shot.dy*210.f*dt;
         }
         shots_.erase(std::remove_if(shots_.begin(),shots_.end(),
-            [](const Shot& s){return s.x<0 || s.x>=WIDTH || s.y<0 || s.y>=HEIGHT;}),shots_.end());
+            [&](const Shot& shot){
+                if(shot.x<0 || shot.x>=WIDTH || shot.y<0 || shot.y>=HEIGHT)return true;
+                return mission_.hit(shot.x,shot.y);
+            }),shots_.end());
+        mission_.update(dt,x_,y_);
         ++frames_;
     }
     void render(uint32_t* pixels,size_t count) const {
@@ -104,6 +118,34 @@ public:
         disc(pixels,264,168,17,rgba(72,65,48));
         rect(pixels,254,156,279,167,rgba(155,132,87));
         }
+        // Original prototype targets are intentionally drawn above any imported
+        // background. Baked vehicles in an AI concept image are NOT game entities.
+        for(const auto& target:mission_.targets()){
+            const int tx=int(target.x),ty=int(target.y);
+            if(target.hp<=0){
+                disc(pixels,tx,ty,10,rgba(53,45,35));
+                disc(pixels,tx+2,ty-1,5,rgba(77,55,40));
+                continue;
+            }
+            // Four distinct stationary ground targets; no licensed assets.
+            rect(pixels,tx-12,ty-7,tx+13,ty+8,rgba(38,44,34));
+            rect(pixels,tx-10,ty-6,tx+11,ty+6,rgba(85,100,62));
+            rect(pixels,tx-6,ty-4,tx+7,ty+5,rgba(132,128,77));
+            disc(pixels,tx,ty,5,rgba(55,72,48));
+            if(target.turret)
+                line(pixels,tx,ty,tx,ty-11,rgba(34,36,33),2);
+            rect(pixels,tx-10,ty-15,tx+10,ty-12,rgba(67,40,30));
+            const int bar=target.hp*20/target.maxHp;
+            rect(pixels,tx-10,ty-15,tx-10+bar,ty-12,rgba(239,91,53));
+        }
+        for(const auto& bullet:mission_.hostileShots()){
+            disc(pixels,int(bullet.x),int(bullet.y),2,rgba(255,88,47));
+        }
+        for(const auto& blast:mission_.blasts()){
+            const int radius=std::max(2,int(blast.ttl*19.f));
+            disc(pixels,int(blast.x),int(blast.y),radius,rgba(238,130,45));
+            disc(pixels,int(blast.x),int(blast.y),std::max(1,radius/2),rgba(255,218,108));
+        }
         disc(pixels,int(x_)+5,int(y_)+13,17,rgba(67,61,49));
         // Helicopter shadow remains procedural. The optional RGBA sprite replaces
         // only the demonstration helicopter; it never changes gameplay mechanics.
@@ -119,6 +161,19 @@ public:
         }
         for(const auto& shot:shots_) {
             disc(pixels,int(shot.x),int(shot.y),2,rgba(255,205,94));
+        }
+        // Minimal in-engine health bar and completion indicator.
+        rect(pixels,7,8,110,17,rgba(30,31,29));
+        rect(pixels,9,10,9+mission_.health(),15,
+             mission_.health()>30?rgba(49,225,106):rgba(252,78,60));
+        for(int i=0;i<CombatMission::TARGET_COUNT;++i){
+            rect(pixels,8+i*13,23,18+i*13,28,
+                i<mission_.destroyed()?rgba(73,219,101):rgba(220,75,54));
+        }
+        if(mission_.state()==CombatMission::State::Won){
+            rect(pixels,0,0,WIDTH,3,rgba(31,226,105));
+        } else if(mission_.state()==CombatMission::State::Lost){
+            rect(pixels,0,0,WIDTH,3,rgba(251,72,56));
         }
     }
 private:
@@ -143,6 +198,7 @@ private:
         }
     }
     SpriteImage sprite_;
+    CombatMission mission_;
     std::vector<uint32_t> scene_;
     int heading_=0;
     bool ready_=false;
