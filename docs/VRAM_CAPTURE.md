@@ -50,3 +50,49 @@ reconstruir os sprites para a IA reestilizar de forma consistente.
 
 Os testes do projeto usam uma VRAM sintética via mock JNI;
 eles não equivalem a jogar Desert Strike em um aparelho real.
+
+
+## Atualização v0.6: CGRAM e OAM reais — APK de pesquisa v0.15
+
+O novo aplicativo **ROM2Native Research v0.15 PPU** oferece no menu:
+**Capturar VRAM + paletas + OAM (ZIP)**.
+
+A compilação auxiliar do Snes9x usa uma extensão aplicada pelo script
+scripts/patch_snes9x_research.py para expor PPU.CGDATA e PPU.OAMData.
+Essa extensão é exclusiva do APK de pesquisa, não do motor ROM2Native AI.
+
+O ZIP atualizado tem os arquivos seguintes:
+- vram.bin: 65.536 bytes de VRAM;
+- cgram.bin: 512 bytes, contendo as 256 cores do SNES em BGR555;
+- oam.bin: 544 bytes, 128 registros brutos e 32 bytes extras;
+- frame.png: o quadro de jogo renderizado, sem botões touch;
+- manifest.json: SHA-256 de cada memória, revisão da ROM e dimensão do quadro.
+
+Os três blocos PPU são copiados em um único acesso protegido por mutex;
+a imagem PNG é capturada separadamente enquanto o jogo está pausado.
+
+### Converter uma captura com paleta de sprites
+
+~~~bash
+python3 -m rom2native.vram_reference minha-captura-v2.zip --sprite-palette 0 --out private-output/ppu
+~~~
+
+A saída inclui cgram-palette.png, oam-sprites.json, atlas em escala
+de cinza e atlas 4bpp coloridos. Escolha --sprite-palette de 0 a 7.
+
+### Comparar duas capturas
+
+~~~bash
+python3 -m rom2native.vram_reference helicoptero-parado-v2.zip --compare helicoptero-movendo-v2.zip --bpp 4 --sprite-palette 0 --out private-output/diferenca
+~~~
+
+O arquivo vram-diff.json mostra alterações na VRAM, as entradas CGRAM
+que mudaram e os índices OAM modificados. ZIPs antigos v1 continuam
+sendo aceitos, mas não têm CGRAM nem OAM para colorização e análise.
+
+**Limitação:** sem registradores de modo gráfico, bases OBJ/BG e
+tamanho real dos objetos, ainda não podemos afirmar que a tabela OAM
+reconstitui corretamente os sprites do jogo. A IA ainda não foi usada
+para refazer gráficos extraídos e confirmados dessa captura.
+
+Não inclua ROM comercial ou capturas derivadas no repositório público.

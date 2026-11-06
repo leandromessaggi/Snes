@@ -107,3 +107,11 @@ Gera candidate-contact.png (miniaturas dos 24 candidatos mais bem pontuados) e c
 ## v0.5 — exportação de referência visual do jogo original
 
 A ferramenta auxiliar **Desert Strike Research v0.14** (Snes9x somente durante a engenharia reversa) exporta os 64KiB da VRAM e o quadro atual PNG em um ZIP. O conversor `rom2native.vram_reference` analisa as páginas de tiles 2/4bpp e compara capturas para descobrir áreas que mudam. Não há CGRAM/OAM nem reconstrução fiel das missões nesta etapa. Instruções: [Captura de VRAM](VRAM_CAPTURE.md).
+
+
+## v0.6 — paletas e atributos reais da PPU
+
+O APK de pesquisa v0.15 coleta VRAM, CGRAM e OAM; o conversor gera
+atlas coloridos por paletas reais e uma tabela OAM. Veja
+[Captura da VRAM e PPU](VRAM_CAPTURE.md). O motor independente C++
+não carrega nem depende do núcleo Snes9x.
