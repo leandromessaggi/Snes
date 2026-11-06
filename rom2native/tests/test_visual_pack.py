@@ -15,6 +15,33 @@ def png_rgba(w=16,h=12):
     return b"\x89PNG\r\n\x1a\n"+chunk(b"IHDR",ihdr)+chunk(b"IDAT",zlib.compress(raw))+chunk(b"IEND",b"")
 
 class VisualPackTests(unittest.TestCase):
+    def test_scene_background_v3(self):
+        rom=b"ROM test"
+        heli=png_rgba(256,16)
+        bg=png_rgba(320,240)
+        packed=make_pack(rom,heli,frames=8,background=bg)
+        meta=inspect_pack(packed,hashlib.sha256(rom).hexdigest())
+        self.assertEqual(meta["format"],"rom2native-visual-v3")
+        self.assertEqual(meta["asset"]["frames"],8)
+        self.assertEqual(meta["scene"]["width"],320)
+        with zipfile.ZipFile(io.BytesIO(packed)) as z:
+            self.assertEqual(set(z.namelist()),{"manifest.json","helicopter.png","background.png"})
+            self.assertEqual(z.read("background.png"),bg)
+        with self.assertRaises(ValueError):
+            make_pack(rom,heli,frames=8,background=png_rgba(320,239))
+        with self.assertRaises(ValueError):
+            inspect_pack(packed,hashlib.sha256(b"not ROM").hexdigest())
+        with zipfile.ZipFile(io.BytesIO(packed)) as z:
+            manifest=json.loads(z.read("manifest.json"))
+        manifest["scene"]["sha256"]="0"*64
+        bad=io.BytesIO()
+        with zipfile.ZipFile(bad,"w") as z:
+            z.writestr("manifest.json",json.dumps(manifest))
+            z.writestr("helicopter.png",heli)
+            z.writestr("background.png",bg)
+        with self.assertRaises(ValueError):
+            inspect_pack(bad.getvalue(),hashlib.sha256(rom).hexdigest())
+
     def test_animated_eight_frames(self):
         rom=b"ROM test"
         image=png_rgba(64,12)
