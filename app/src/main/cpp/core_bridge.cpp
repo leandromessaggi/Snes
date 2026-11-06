@@ -331,6 +331,28 @@ Java_br_com_desertstrike_NativeCore_snapshotVram(JNIEnv* env,jobject) {
     if (!vram || n!=64u*1024u) return nullptr;
     return javaBytes(env,vram,n);
 }
+// Research-only combined PPU snapshot. The custom Snes9x core exposes
+// CGRAM=0x524E0001 (512 bytes) and OAM=0x524E0002 (544 bytes).
+// The snapshot is laid out [VRAM 65536][CGRAM 512][OAM 544].
+extern "C" JNIEXPORT jbyteArray JNICALL
+Java_br_com_desertstrike_NativeCore_snapshotPpu(JNIEnv* env,jobject) {
+    std::lock_guard<std::mutex> lock(coreMutex);
+    if (!loaded || !api.get_memory_data || !api.get_memory_size) return nullptr;
+    constexpr unsigned vramId=3u,cgramId=0x524e0001u,oamId=0x524e0002u;
+    constexpr size_t vramLength=65536u,cgramLength=512u,oamLength=544u;
+    if (api.get_memory_size(vramId)!=vramLength ||
+        api.get_memory_size(cgramId)!=cgramLength ||
+        api.get_memory_size(oamId)!=oamLength) return nullptr;
+    auto* vram=static_cast<const uint8_t*>(api.get_memory_data(vramId));
+    auto* cgram=static_cast<const uint8_t*>(api.get_memory_data(cgramId));
+    auto* oam=static_cast<const uint8_t*>(api.get_memory_data(oamId));
+    if (!vram || !cgram || !oam) return nullptr;
+    std::vector<uint8_t> dump(vramLength+cgramLength+oamLength);
+    std::memcpy(dump.data(),vram,vramLength);
+    std::memcpy(dump.data()+vramLength,cgram,cgramLength);
+    std::memcpy(dump.data()+vramLength+cgramLength,oam,oamLength);
+    return javaBytes(env,dump.data(),dump.size());
+}
 extern "C" JNIEXPORT jboolean JNICALL
 Java_br_com_desertstrike_NativeCore_traceStart(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(coreMutex);

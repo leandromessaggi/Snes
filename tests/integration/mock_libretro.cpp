@@ -23,6 +23,8 @@ poll_t poll{}; input_t input{};
 unsigned format{}; unsigned frames{};
 std::array<uint8_t,1024> wram{};
 std::array<uint8_t,64*1024> vram{};
+std::array<uint8_t,512> cgram{};
+std::array<uint8_t,544> oam{};
 std::array<uint8_t,16> sram{};
 }
 extern "C" {
@@ -38,7 +40,8 @@ bool retro_load_game(const retro_game_info* g) {
     if (!g || !g->data || g->size<16 || !env || !video || !audio || !batch || !input || !poll) return false;
     format=static_cast<const uint8_t*>(g->data)[0];
     if(format>2 || !env(10,&format)) return false;
-    frames=0; wram.fill(0); sram.fill(0); vram.fill(0); vram[0]=0x3a; return true;
+    frames=0; wram.fill(0); sram.fill(0); vram.fill(0); cgram.fill(0); oam.fill(0);
+    vram[0]=0x3a; cgram[0]=0x1f; oam[0]=12; return true;
 }
 void retro_unload_game() {}
 void retro_set_controller_port_device(unsigned,unsigned) {}
@@ -52,6 +55,7 @@ void retro_run() {
     wram[1]=static_cast<uint8_t>(buttons>>8);
     wram[2]=static_cast<uint8_t>(++frames);
     vram[1]=static_cast<uint8_t>(frames);
+    oam[0]=static_cast<uint8_t>(12+frames);
     if(format==1) {
         const uint32_t pix[4]={0x00ff0000,0x0000ff00,0x000000ff,0x00ffffff};
         video(pix,2,2,8);
@@ -83,6 +87,6 @@ bool retro_unserialize(const void* ptr,size_t n) {
     std::copy(x.sram,x.sram+16,sram.begin());
     return true;
 }
-void* retro_get_memory_data(unsigned id) { return id==3?vram.data():id==2?wram.data():id==0?sram.data():nullptr; }
-size_t retro_get_memory_size(unsigned id) { return id==3?vram.size():id==2?wram.size():id==0?sram.size():0; }
+void* retro_get_memory_data(unsigned id) { return id==0x524e0001u?cgram.data():id==0x524e0002u?oam.data():id==3?vram.data():id==2?wram.data():id==0?sram.data():nullptr; }
+size_t retro_get_memory_size(unsigned id) { return id==0x524e0001u?cgram.size():id==0x524e0002u?oam.size():id==3?vram.size():id==2?wram.size():id==0?sram.size():0; }
 }

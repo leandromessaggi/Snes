@@ -14,6 +14,7 @@ public final class NativeCore {
     public native byte[] saveRam();
     public native boolean loadRam(byte[] ram);
     public native byte[] snapshotVram();
+    public native byte[] snapshotPpu();
     public native boolean traceStart();
     public native String traceStop();
 }

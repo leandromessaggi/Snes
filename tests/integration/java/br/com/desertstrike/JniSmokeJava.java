@@ -11,6 +11,7 @@ public final class JniSmokeJava {
         check(!core.lastError().isEmpty(),"Expected diagnostic");
         check(core.stats().contains("\"loaded\":false"),"Not running");
         check(core.snapshotVram()==null,"No VRAM before starting core");
+        check(core.snapshotPpu()==null,"No PPU before starting core");
         check(core.start(path,"/tmp",new byte[8])==0.0,"Invalid mock ROM");
         for(int format=0;format<3;format++) {
             byte[] rom=new byte[128]; rom[0]=(byte)format;
@@ -19,6 +20,10 @@ public final class JniSmokeJava {
             check(core.stats().contains("\"loaded\":true"),"Core loaded");
             byte[] vramStart=core.snapshotVram();
             check(vramStart!=null && vramStart.length==65536 && vramStart[0]==0x3a && vramStart[1]==0,"Initial VRAM");
+            byte[] ppuStart=core.snapshotPpu();
+            check(ppuStart!=null && ppuStart.length==65536+512+544,"PPU snapshot size");
+            check(ppuStart[0]==0x3a && ppuStart[65536]==0x1f &&
+                  ppuStart[65536+512]==12,"PPU snapshot VRAM/CGRAM/OAM");
             check(core.traceStart(),"WRAM tracing");
             int[] pixels=new int[512*512];
             check(core.frame(pixels)==((2<<16)|2),"Frame shape");
@@ -27,6 +32,9 @@ public final class JniSmokeJava {
             check(core.drainAudio(samples)==10,"Audio samples");
             byte[] vramAfter=core.snapshotVram();
             check(vramAfter!=null && vramAfter[0]==0x3a && vramAfter[1]==1,"Runtime VRAM snapshot");
+            byte[] ppuAfter=core.snapshotPpu();
+            check(ppuAfter!=null && ppuAfter[1]==1 &&
+                  ppuAfter[65536+512]==13,"Runtime PPU coherent frame");
             check(samples[0]==-1 && samples[1]==1 && samples[8]==-123 && samples[9]==456,"Audio data");
             core.input(0x181); core.frame(pixels);
             String metrics=core.stats();
@@ -43,6 +51,7 @@ public final class JniSmokeJava {
             check(core.frame(pixels)==0,"Stop lifecycle");
             check(core.stats().contains("\"frames\":0"),"Reset counters");
             check(core.snapshotVram()==null,"VRAM unavailable after stop");
+            check(core.snapshotPpu()==null,"PPU unavailable after stop");
             System.out.println("PASS Java JNI mock format "+format);
         }
     }
