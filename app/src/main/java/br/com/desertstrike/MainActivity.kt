@@ -180,8 +180,8 @@ class MainActivity : Activity() {
             "Ativar/desativar mods", "Remover mods", "Salvar estado", "Carregar estado",
             "Mostrar/esconder controle touch", "Remapear gamepad", "Reiniciar",
             "Iniciar rastreamento de RAM", "Exportar rastreamento JSON", "Diagnóstico técnico",
-            "Exportar diagnóstico JSON", "Capturar VRAM + quadro (ZIP)")
-        AlertDialog.Builder(this).setTitle("Desert Strike Research v0.14 — VRAM")
+            "Exportar diagnóstico JSON", "Capturar VRAM + paletas + OAM (ZIP)")
+        AlertDialog.Builder(this).setTitle("Desert Strike Research v0.15 — PPU")
             .setItems(items) { _, index ->
                 when (index) {
                     0 -> { stopCore(); picker(PICK_ROM) }
@@ -289,7 +289,7 @@ class MainActivity : Activity() {
         return JSONObject()
             .put("schema", "desert-android-diagnostics-v1")
             .put("created_utc", Instant.now().toString())
-            .put("app_version", "0.14-vram-research")
+            .put("app_version", "0.15-ppu-research")
             .put("android_sdk", Build.VERSION.SDK_INT)
             .put("manufacturer", Build.MANUFACTURER)
             .put("device_model", Build.MODEL)
@@ -306,27 +306,42 @@ class MainActivity : Activity() {
     }
 
     private fun createVramReference(): ByteArray {
-        require(active.get()) { "Inicie e jogue antes de capturar a VRAM" }
-        val vram = NativeCore.snapshotVram() ?: error("VRAM indisponível neste núcleo")
-        require(vram.size == 64*1024) { "Tamanho inesperado de VRAM" }
-        val frame = gameView.snapshotReferenceFrame() ?: error("Nenhum quadro de vídeo capturado")
+        require(active.get()) { "Inicie e jogue antes de capturar a PPU" }
+        // One native snapshot holds coreMutex while copying all three memories.
+        val ppu = NativeCore.snapshotPpu()
+            ?: error("Núcleo de pesquisa não disponibiliza VRAM/CGRAM/OAM")
+        val vramSize = 64 * 1024
+        val cgramSize = 512
+        val oamSize = 544
+        require(ppu.size == vramSize + cgramSize + oamSize) {
+            "Tamanho inesperado da captura PPU"
+        }
+        val vram = ppu.copyOfRange(0, vramSize)
+        val cgram = ppu.copyOfRange(vramSize, vramSize + cgramSize)
+        val oam = ppu.copyOfRange(vramSize + cgramSize, ppu.size)
+        val frame = gameView.snapshotReferenceFrame()
+            ?: error("Nenhum quadro de vídeo capturado")
         require(frame.png.size < 4*1024*1024) { "Quadro PNG grande demais" }
         val metrics = JSONObject(NativeCore.stats())
         val hash = MessageDigest.getInstance("SHA-256")
         fun digest(bytes: ByteArray): String =
             hash.digest(bytes).joinToString("") { "%02x".format(it) }
         val meta = JSONObject()
-            .put("format", "rom2native-vram-capture-v1")
+            .put("format", "rom2native-ppu-capture-v2")
             .put("captured_utc", Instant.now().toString())
             .put("rom_sha256", currentHash)
             .put("frame", metrics.optLong("frames"))
             .put("vram_bytes", vram.size)
             .put("vram_sha256", digest(vram))
+            .put("cgram_bytes", cgram.size)
+            .put("cgram_sha256", digest(cgram))
+            .put("oam_bytes", oam.size)
+            .put("oam_sha256", digest(oam))
             .put("frame_width", frame.width)
             .put("frame_height", frame.height)
             .put("frame_png_sha256", digest(frame.png))
-            .put("coherence", "paused_near_same_frame_not_atomic")
-            .put("note", "64KiB VRAM + rendered frame; CGRAM palettes and OAM are not included")
+            .put("coherence", "ppu_atomic_frame_png_near_same_frame")
+            .put("note", "OAM is raw; sprite size, tile addresses, palette and positions need interpretation")
         val result = ByteArrayOutputStream()
         ZipOutputStream(result).use { zip ->
             fun append(name: String, bytes: ByteArray) {
@@ -336,6 +351,8 @@ class MainActivity : Activity() {
             }
             append("manifest.json", meta.toString(2).toByteArray(Charsets.UTF_8))
             append("vram.bin", vram)
+            append("cgram.bin", cgram)
+            append("oam.bin", oam)
             append("frame.png", frame.png)
         }
         return result.toByteArray()
@@ -347,7 +364,7 @@ class MainActivity : Activity() {
         intent.type = if (type == SAVE_REFERENCE) "application/zip" else if (type == SAVE_TRACE || type == SAVE_DIAGNOSTIC) "application/json" else "*/*"
         if (type == SAVE_TRACE) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-wram-trace.json")
         if (type == SAVE_DIAGNOSTIC) intent.putExtra(Intent.EXTRA_TITLE, "desert-strike-diagnostics.json")
-        if (type == SAVE_REFERENCE) intent.putExtra(Intent.EXTRA_TITLE, "rom2native-vram-reference.zip")
+        if (type == SAVE_REFERENCE) intent.putExtra(Intent.EXTRA_TITLE, "rom2native-ppu-reference-v2.zip")
         @Suppress("DEPRECATION")
         startActivityForResult(intent, type)
     }
@@ -382,7 +399,7 @@ class MainActivity : Activity() {
                     contentResolver.openOutputStream(uri, "w")?.use { it.write(dataBytes) }
                         ?: error("Não foi possível gravar a referência")
                     referenceExport = null
-                    toast("VRAM e quadro de vídeo exportados")
+                    toast("VRAM, paletas, OAM e quadro exportados")
                 }
                 SAVE_DIAGNOSTIC -> {
                     val text = diagnosticExport ?: error("Diagnóstico ausente")
