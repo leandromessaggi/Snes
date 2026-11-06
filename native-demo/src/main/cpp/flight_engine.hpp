@@ -19,7 +19,7 @@ public:
         // Data-derived terrain seed, NOT a decompiled map. No ROM bytes are retained.
         uint32_t hash=2166136261u;
         for (size_t i=0;i<length;++i) hash=(hash^rom[i])*16777619u;
-        seed_=hash; ready_=true; sprite_.clear(); reset(); return true;
+        seed_=hash; ready_=true; sprite_.clear(); scene_.clear(); reset(); return true;
     }
     void reset() { x_=160; y_=135; frames_=0; heading_=0; fireCooldown_=0; shots_.clear(); }
     bool ready() const {return ready_;}
@@ -32,6 +32,18 @@ public:
         return ready_ && sprite_.set(pixels,count,width,height,frames);
     }
     int heading() const {return heading_;}
+    bool setSceneImage(const uint32_t* rgba,size_t count,int width,int height){
+        if(!ready_ || !rgba || width!=WIDTH || height!=HEIGHT ||
+           count!=static_cast<size_t>(WIDTH*HEIGHT)) return false;
+        // A full-screen image must be opaque, avoiding render buffer leaks.
+        if(!std::all_of(rgba,rgba+count,[](uint32_t c){return (c>>24)==255u;}))
+            return false;
+        scene_.assign(rgba,rgba+count);
+        return true;
+    }
+    void clearScene(){scene_.clear();}
+    bool hasScene() const {return scene_.size()==static_cast<size_t>(WIDTH*HEIGHT);}
+
 
     float x() const {return x_;}
     float y() const {return y_;}
@@ -71,6 +83,9 @@ public:
     }
     void render(uint32_t* pixels,size_t count) const {
         if(!pixels || count<static_cast<size_t>(WIDTH*HEIGHT))return;
+        if(hasScene()) {
+            std::copy(scene_.begin(),scene_.end(),pixels);
+        } else {
         for(int y=0;y<HEIGHT;++y) for(int x=0;x<WIDTH;++x) {
             uint32_t noise=((uint32_t(x)*1664525u+uint32_t(y)*1013904223u)^seed_);
             noise^=noise>>15;noise*=2246822519u;noise^=noise>>13;
@@ -88,6 +103,7 @@ public:
         rect(pixels,74,55,88,63,rgba(88,83,70));
         disc(pixels,264,168,17,rgba(72,65,48));
         rect(pixels,254,156,279,167,rgba(155,132,87));
+        }
         disc(pixels,int(x_)+5,int(y_)+13,17,rgba(67,61,49));
         // Helicopter shadow remains procedural. The optional RGBA sprite replaces
         // only the demonstration helicopter; it never changes gameplay mechanics.
@@ -127,6 +143,7 @@ private:
         }
     }
     SpriteImage sprite_;
+    std::vector<uint32_t> scene_;
     int heading_=0;
     bool ready_=false;
     uint32_t seed_=0;

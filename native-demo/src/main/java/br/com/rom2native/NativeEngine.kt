@@ -7,5 +7,7 @@ object NativeEngine {
     external fun setHelicopterSprite(argb:IntArray,width:Int,height:Int):Boolean
     external fun draw(pixels:IntArray)
     external fun setHelicopterAtlas(argb:IntArray,width:Int,height:Int,frames:Int):Boolean
+    external fun setSceneImage(argb:IntArray,width:Int,height:Int):Boolean
+    external fun clearSceneImage()
     external fun status():String
 }

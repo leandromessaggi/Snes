@@ -63,5 +63,25 @@ int main() {
     assert(e.setHelicopterSprite(picture,9,3,3));
     assert(e.spriteFrames()==1);
 
+    // v3 scene must render below helicopter, bullets and shadow, and
+    // switch back to procedural terrain without leaving pixels behind.
+    std::vector<uint32_t> scene(romnative::WIDTH*romnative::HEIGHT,0xff172738u);
+    assert(!e.setSceneImage(scene.data(),scene.size()-1,romnative::WIDTH,romnative::HEIGHT));
+    assert(!e.setSceneImage(scene.data(),scene.size(),319,romnative::HEIGHT));
+    scene[123] = 0x00112233u; // transparent is invalid
+    assert(!e.setSceneImage(scene.data(),scene.size(),romnative::WIDTH,romnative::HEIGHT));
+    scene[123] = 0xff172738u;
+    assert(e.setSceneImage(scene.data(),scene.size(),romnative::WIDTH,romnative::HEIGHT));
+    assert(e.hasScene());
+    e.render(frame.data(),frame.size());
+    assert(frame[0]==0xff172738u);
+    assert(frame[int(e.y())*romnative::WIDTH+int(e.x())]==0xffff3311u);
+    e.clearScene();
+    assert(!e.hasScene());
+    e.render(frame.data(),frame.size());
+    assert(frame[0]!=0xff172738u);
+    assert(e.load(rom.data(),rom.size()));
+    assert(!e.hasScene());
+
     std::puts("PASS native flight engine (no emulator dependency)");
 }

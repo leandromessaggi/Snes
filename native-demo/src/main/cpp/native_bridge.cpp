@@ -58,6 +58,23 @@ Java_br_com_rom2native_NativeEngine_setHelicopterAtlas(
     return engine.setHelicopterAtlas(reinterpret_cast<const uint32_t*>(pixels.data()),
         pixels.size(),width,height,frames)?JNI_TRUE:JNI_FALSE;
 }
+extern "C" JNIEXPORT jboolean JNICALL
+Java_br_com_rom2native_NativeEngine_setSceneImage(
+        JNIEnv* env,jobject,jintArray data,jint width,jint height) {
+    if (!data || width!=romnative::WIDTH || height!=romnative::HEIGHT ||
+        env->GetArrayLength(data)!=romnative::WIDTH*romnative::HEIGHT) return JNI_FALSE;
+    std::vector<jint> pixels(static_cast<size_t>(width)*height);
+    env->GetIntArrayRegion(data,0,static_cast<jsize>(pixels.size()),pixels.data());
+    if(env->ExceptionCheck())return JNI_FALSE;
+    std::lock_guard<std::mutex> lock(mutex);
+    return engine.setSceneImage(reinterpret_cast<const uint32_t*>(pixels.data()),
+        pixels.size(),width,height)?JNI_TRUE:JNI_FALSE;
+}
+extern "C" JNIEXPORT void JNICALL
+Java_br_com_rom2native_NativeEngine_clearSceneImage(JNIEnv*,jobject) {
+    std::lock_guard<std::mutex> lock(mutex);
+    engine.clearScene();
+}
 extern "C" JNIEXPORT jstring JNICALL
 Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -66,6 +83,7 @@ Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
        " | tiros="+std::to_string(engine.shotCount())+
        " | sprite="+(engine.hasHelicopterSprite()?"personalizado":"provisorio")+
        " | angulo="+std::to_string(engine.heading())+
-       " | frames_sprite="+std::to_string(engine.spriteFrames());
+       " | frames_sprite="+std::to_string(engine.spriteFrames())+
+       " | cenario="+(engine.hasScene()?"personalizado":"provisorio");
     return env->NewStringUTF(s.c_str());
 }
