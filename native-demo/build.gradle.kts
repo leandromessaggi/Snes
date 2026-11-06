@@ -9,8 +9,8 @@ android {
         applicationId = "br.com.rom2native"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.5-verified-vram-sprites"
+        versionCode = 6
+        versionName = "0.6-cgi-scene-pack"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
     ndkVersion = "27.2.12479018"

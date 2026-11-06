@@ -7,119 +7,156 @@ import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
 /**
- * Validates a data-only visual pack before handing ARGB pixels to the C++ renderer.
- * Never extracts arbitrary files or executes mod code.
+ * Data-only asset packs: v1 one helicopter, v2 eight directions,
+ * v3 helicopter + background. The ZIP may never contain executable code.
  */
 object VisualPack {
-    data class Sprite(val pixels: IntArray, val width: Int, val height: Int, val frames: Int)
-    private const val MAX_PACK = 3 * 1024 * 1024
+    data class Scene(val pixels:IntArray, val width:Int, val height:Int)
+    data class Sprite(val pixels:IntArray, val width:Int, val height:Int,
+                      val frames:Int, val scene:Scene? = null)
+    private const val MAX_PACK = 5 * 1024 * 1024
     private const val MAX_IMAGE = 2 * 1024 * 1024
     private const val MAX_MANIFEST = 8192
-    private const val FORMAT = "rom2native-visual-v1"
-    private const val FORMAT_8 = "rom2native-visual-v2"
+    private const val V1 = "rom2native-visual-v1"
+    private const val V2 = "rom2native-visual-v2"
+    private const val V3 = "rom2native-visual-v3"
     private val DIRECTIONS = arrayOf("N","NE","E","SE","S","SW","W","NW")
 
-    private fun readLimited(zip: ZipInputStream, max: Int): ByteArray {
-        val buffer = ByteArray(8192)
-        val out = ByteArrayOutputStream()
-        while (true) {
-            val count = zip.read(buffer)
-            if (count < 0) break
-            if (count == 0) continue
-            require(out.size().toLong() + count <= max) { "Arquivo do pacote muito grande" }
-            out.write(buffer, 0, count)
+    private fun readLimited(zip:ZipInputStream,max:Int):ByteArray {
+        val out=ByteArrayOutputStream()
+        val buffer=ByteArray(8192)
+        while(true) {
+            val count=zip.read(buffer)
+            if(count<0) break
+            if(count==0) continue
+            require(out.size().toLong()+count<=max){"Entrada ZIP excede limite"}
+            out.write(buffer,0,count)
         }
         return out.toByteArray()
     }
-
-    private fun sha256(data: ByteArray): String =
+    private fun sha256(data:ByteArray):String =
         MessageDigest.getInstance("SHA-256").digest(data)
-            .joinToString("") { "%02x".format(it) }
+            .joinToString(""){"%02x".format(it)}
 
-    fun parse(bytes: ByteArray, expectedRomHash: String): Sprite {
-        require(bytes.size in 1..MAX_PACK) { "Pacote excede 3 MiB" }
-        val entries = linkedMapOf<String, ByteArray>()
-        ZipInputStream(bytes.inputStream()).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                require(!entry.isDirectory) { "Diretórios não são aceitos no pacote visual" }
-                val name = entry.name
-                require(name == "manifest.json" || name == "helicopter.png") {
-                    "Somente manifest.json e helicopter.png são permitidos"
+    // Strictly require 8-bit RGBA PNG, not a magic-header-only substitute.
+    private fun rgbaPixels(png:ByteArray,widthLimit:Int,heightLimit:Int):Triple<IntArray,Int,Int> {
+        require(png.size in 33..MAX_IMAGE){"Imagem muito grande ou inválida"}
+        val sig=byteArrayOf(0x89.toByte(),0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a)
+        require(png.copyOfRange(0,8).contentEquals(sig) &&
+            (png[24].toInt() and 255)==8 && (png[25].toInt() and 255)==6) {
+            "É obrigatório PNG RGBA 8 bits"
+        }
+        val bounds=BitmapFactory.Options().apply { inJustDecodeBounds=true }
+        BitmapFactory.decodeByteArray(png,0,png.size,bounds)
+        val w=bounds.outWidth
+        val h=bounds.outHeight
+        require(w in 1..widthLimit && h in 1..heightLimit){"Dimensões de PNG fora do limite"}
+        val options=BitmapFactory.Options().apply {
+            inScaled=false
+            inPremultiplied=false
+        }
+        val bitmap=BitmapFactory.decodeByteArray(png,0,png.size,options)
+            ?: error("PNG inválido ou corrompido")
+        try {
+            require(bitmap.width==w && bitmap.height==h){"Imagem com dimensões inconsistentes"}
+            val values=IntArray(w*h)
+            bitmap.getPixels(values,0,w,0,0,w,h)
+            return Triple(values,w,h)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
+    fun parse(bytes:ByteArray,expectedRomHash:String):Sprite {
+        require(bytes.size in 1..MAX_PACK){"Pacote visual excede 5 MiB"}
+        val entries=linkedMapOf<String,ByteArray>()
+        ZipInputStream(bytes.inputStream()).use {zip->
+            while(true) {
+                val entry=zip.nextEntry ?: break
+                require(!entry.isDirectory){"Diretório não permitido"}
+                val name=entry.name
+                require(name=="manifest.json" || name=="helicopter.png" || name=="background.png") {
+                    "Pacote contém arquivo inesperado"
                 }
-                require(!entries.containsKey(name)) { "Arquivo duplicado no pacote" }
-                val max = if (name == "manifest.json") MAX_MANIFEST else MAX_IMAGE
-                entries[name] = readLimited(zip, max)
+                require(!entries.containsKey(name)){"Arquivo ZIP duplicado"}
+                val limit=if(name=="manifest.json") MAX_MANIFEST else MAX_IMAGE
+                entries[name]=readLimited(zip,limit)
                 zip.closeEntry()
             }
         }
-        require(entries.keys == setOf("manifest.json", "helicopter.png")) {
-            "Manifesto ou imagem ausente"
-        }
-        val manifest = JSONObject(String(entries.getValue("manifest.json"), Charsets.UTF_8))
-        val format = manifest.optString("format")
-        require(format == FORMAT || format == FORMAT_8) { "Versão de pacote incompatível" }
-        val frames = if (format == FORMAT_8) 8 else 1
-        require(manifest.optString("rom_sha256") == expectedRomHash) {
+        val manifest=JSONObject(String(entries["manifest.json"]
+            ?: error("manifest.json ausente"),Charsets.UTF_8))
+        val format=manifest.optString("format")
+        require(format==V1 || format==V2 || format==V3){"Versão de pacote desconhecida"}
+        val needsScene=format==V3
+        val expected=if(needsScene)
+            setOf("manifest.json","helicopter.png","background.png")
+        else setOf("manifest.json","helicopter.png")
+        require(entries.keys==expected){"Arquivos do pacote não correspondem à versão"}
+        require(manifest.optString("rom_sha256")==expectedRomHash) {
             "Pacote destinado a outra revisão da ROM"
         }
-        val asset = manifest.getJSONObject("asset")
-        require(asset.optString("id") == "helicopter" &&
-            asset.optString("file") == "helicopter.png") { "Asset inválido" }
-        val png = entries.getValue("helicopter.png")
-        require(sha256(png) == asset.optString("sha256")) { "SHA-256 do sprite não corresponde" }
-        val signature = byteArrayOf(0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)
-        require(png.size >= 33 && png.copyOfRange(0, 8).contentEquals(signature) &&
-            (png[24].toInt() and 255) == 8 && (png[25].toInt() and 255) == 6) {
-            "O sprite precisa ser PNG RGBA de 8 bits"
+
+        val asset=manifest.getJSONObject("asset")
+        require(asset.optString("id")=="helicopter" && asset.optString("file")=="helicopter.png") {
+            "Identificador do helicóptero inválido"
         }
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(png, 0, png.size, bounds)
-        val w = bounds.outWidth
-        val h = bounds.outHeight
-        require(w in 1..(128 * frames) && h in 1..128 && w % frames == 0 &&
-            w / frames in 1..128 && w == asset.getInt("width") &&
-            h == asset.getInt("height")) {
-            "Dimensões do PNG incompatíveis com o manifesto"
+        val heli=entries.getValue("helicopter.png")
+        require(sha256(heli)==asset.optString("sha256")){"Hash do helicóptero incorreto"}
+        val frames=if(format==V2) 8 else if(format==V3) asset.optInt("frames",1) else 1
+        require(frames==1 || frames==8){"Número de quadros inválido"}
+        val (pixels,w,h)=rgbaPixels(heli,128*frames,128)
+        require(w%frames==0 && w/frames in 1..128 &&
+            w==asset.getInt("width") && h==asset.getInt("height")) {
+            "Dimensões do helicóptero divergentes"
         }
-        if (frames == 8) {
-            require(asset.optInt("frames") == 8 &&
-                asset.optString("layout") == "horizontal" &&
-                asset.optInt("frame_width") == w / 8 &&
-                asset.optInt("frame_height") == h) { "Formato de atlas incompatível" }
-            val dirs = asset.getJSONArray("directions")
-            require(dirs.length() == DIRECTIONS.size &&
-                DIRECTIONS.indices.all { i -> dirs.getString(i) == DIRECTIONS[i] }) {
-                "Ordem das direções deve ser N,NE,E,SE,S,SW,W,NW"
+        if(frames==8) {
+            require(asset.optInt("frames")==8 && asset.optString("layout")=="horizontal" &&
+                asset.optInt("frame_width")==w/8 && asset.optInt("frame_height")==h) {
+                "Atlas direcional incompatível"
+            }
+            val dirs=asset.getJSONArray("directions")
+            require(dirs.length()==8 &&
+                DIRECTIONS.indices.all{i->dirs.getString(i)==DIRECTIONS[i]}) {
+                "Direções devem seguir N,NE,E,SE,S,SW,W,NW"
             }
         } else {
-            require(!asset.has("frames") || asset.getInt("frames") == 1) {
-                "Pacote visual v1 só aceita um quadro"
+            require(!asset.has("frames") || asset.getInt("frames")==1) {
+                "Sprite com quadros incompatíveis"
             }
         }
-        val image = BitmapFactory.decodeByteArray(png, 0, png.size)
-            ?: error("Não foi possível decodificar a imagem")
-        try {
-            require(image.width == w && image.height == h) { "Imagem inconsistente" }
-            val pixels = IntArray(w * h)
-            image.getPixels(pixels, 0, w, 0, 0, w, h)
-            val frameWidth = w / frames
-            for (index in 0 until frames) {
-                var hasOpaquePixel = false
-                for (y in 0 until h) {
-                    for (x in 0 until frameWidth) {
-                        if (pixels[y * w + index * frameWidth + x] ushr 24 != 0) {
-                            hasOpaquePixel = true
-                            break
-                        }
+        val fw=w/frames
+        for(index in 0 until frames) {
+            var visible=false
+            for(y in 0 until h) {
+                for(x in 0 until fw) {
+                    if((pixels[y*w+index*fw+x] ushr 24)!=0) {
+                        visible=true
+                        break
                     }
-                    if (hasOpaquePixel) break
                 }
-                require(hasOpaquePixel) { "Quadro do helicóptero transparente: $index" }
+                if(visible)break
             }
-            return Sprite(pixels, w, h, frames)
-        } finally {
-            image.recycle()
+            require(visible){"Quadro do helicóptero invisível: $index"}
         }
+
+        var scene:Scene?=null
+        if(needsScene) {
+            val info=manifest.getJSONObject("scene")
+            require(info.optString("id")=="background" &&
+                info.optString("file")=="background.png" &&
+                info.optInt("width")==320 && info.optInt("height")==240) {
+                "Metadados do cenário inválidos"
+            }
+            val png=entries.getValue("background.png")
+            require(sha256(png)==info.optString("sha256")){"Hash do cenário inválido"}
+            val (background,bw,bh)=rgbaPixels(png,320,240)
+            require(bw==320 && bh==240){"Cenário precisa ser 320x240"}
+            require(background.all{(it ushr 24)==255}) {
+                "Cenário precisa ser completamente opaco"
+            }
+            scene=Scene(background,bw,bh)
+        }
+        return Sprite(pixels,w,h,frames,scene)
     }
 }

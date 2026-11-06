@@ -55,10 +55,10 @@ jobs:
           print("PASS: independent C++ runtime aligned to 16 KiB")
           PY
           mkdir -p dist
-          cp "$APK" dist/ROM2NativeAI-v0.5-real-vram-sprites-debug.apk
-          (cd dist && sha256sum ROM2NativeAI-v0.5-real-vram-sprites-debug.apk > SHA256SUMS.txt)
+          cp "$APK" dist/ROM2NativeAI-v0.6-cgi-scene-debug.apk
+          (cd dist && sha256sum ROM2NativeAI-v0.6-cgi-scene-debug.apk > SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: ROM2NativeAI-v0.5-real-vram-sprites
+          name: ROM2NativeAI-v0.6-cgi-scene
           path: dist/
           if-no-files-found: error

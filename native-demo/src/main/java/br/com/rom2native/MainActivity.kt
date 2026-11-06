@@ -42,7 +42,7 @@ class MainActivity : Activity() {
                     status.text="Importe a ROM original antes do pacote visual"
                 } else {
                     val intent=Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                        type="application/zip"
+                        type="*/*" // Android providers often expose ZIPs as application/octet-stream
                         addCategory(Intent.CATEGORY_OPENABLE)
                     }
                     startActivityForResult(intent,102)
@@ -69,12 +69,22 @@ class MainActivity : Activity() {
             }
         } catch (_:Exception) { }
     }
+    private fun applyVisualPack(sprite:VisualPack.Sprite) {
+        if(sprite.scene!=null) {
+            check(NativeEngine.setSceneImage(sprite.scene.pixels,
+                sprite.scene.width,sprite.scene.height)){"Motor recusou o cenário"}
+        } else {
+            NativeEngine.clearSceneImage()
+        }
+        check(NativeEngine.setHelicopterAtlas(sprite.pixels,sprite.width,
+            sprite.height,sprite.frames)){"Motor recusou o helicóptero"}
+    }
     private fun restoreVisualPack() {
         val saved=File(filesDir,"visualpack.zip")
         if (!saved.isFile || !view.loaded) return
         try {
             val sprite=VisualPack.parse(saved.readBytes(),supportedHash)
-            check(NativeEngine.setHelicopterAtlas(sprite.pixels,sprite.width,sprite.height,sprite.frames))
+            applyVisualPack(sprite)
             showStatus()
         } catch (e:Exception) {
             status.text="Pacote visual não carregado: "+e.message
@@ -138,12 +148,10 @@ class MainActivity : Activity() {
                 102 -> {
                     check(view.loaded){"Importe a ROM original antes"}
                     val pack=contentResolver.openInputStream(data.data!!)?.use {
-                        readCapped(it,1024*1024)
+                        readCapped(it,5*1024*1024)
                     } ?: error("Arquivo de pacote visual indisponível")
                     val sprite=VisualPack.parse(pack,supportedHash)
-                    check(NativeEngine.setHelicopterAtlas(sprite.pixels,sprite.width,sprite.height,sprite.frames)){
-                        "Motor nativo não aceitou o sprite"
-                    }
+                    applyVisualPack(sprite)
                     File(filesDir,"visualpack.zip").writeBytes(pack)
                     showStatus()
                     status.text = status.text.toString() + " • pacote visual validado"
