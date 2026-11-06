@@ -86,8 +86,10 @@ class PpuCaptureTests(unittest.TestCase):
             self.assertEqual(result["changed_2bpp_tiles"],[2])
             self.assertEqual(result["changed_palette_entries"],[4])
             self.assertEqual(result["changed_oam_sprite_indices"],[0])
+            different=root/"different.zip"
+            different.write_bytes(make_capture(rom_sha="b"*64))
             with self.assertRaises(ValueError):
-                diff_vram(load_capture(a),load_capture(root/"different.zip"))
+                diff_vram(load_capture(a),load_capture(different))
     def test_invalid_package(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=Path(tmp)/"broken.zip"
