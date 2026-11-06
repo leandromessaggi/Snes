@@ -36,7 +36,7 @@ class MainActivity : Activity() {
             }
         }
         val visualButton=Button(this).apply {
-            text="Importar visual CGI (ZIP)"
+            text="Importar pacote visual (ZIP)"
             setOnClickListener {
                 if (!view.loaded) {
                     status.text="Importe a ROM original antes do pacote visual"
@@ -146,7 +146,7 @@ class MainActivity : Activity() {
                     }
                     File(filesDir,"visualpack.zip").writeBytes(pack)
                     showStatus()
-                    status.text = status.text.toString() + " • pacote CGI importado"
+                    status.text = status.text.toString() + " • pacote visual validado"
                     view.invalidate()
                 }
             }

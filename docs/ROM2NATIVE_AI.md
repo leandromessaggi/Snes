@@ -115,3 +115,7 @@ O APK de pesquisa v0.15 coleta VRAM, CGRAM e OAM; o conversor gera
 atlas coloridos por paletas reais e uma tabela OAM. Veja
 [Captura da VRAM e PPU](VRAM_CAPTURE.md). O motor independente C++
 não carrega nem depende do núcleo Snes9x.
+
+## v0.7 — primeiros sprites originais no motor Android independente
+
+O helicóptero foi reconstruído a partir de cinco capturas reais de VRAM, CGRAM e OAM. Os pixels visíveis coincidem com as máscaras extraídas das screenshots nos cinco frames analisados (646, 636, 497, 638, 643 pixels). Veja [Reconstrução OBJ](OBJ_RECONSTRUCTION.md). O aplicativo nativo v0.5 importa os sprites por pacote visual v1, com um quadro original por pacote, sem Snes9x ou Libretro. O botão agora diz **Importar pacote visual (ZIP)** para distinguir gráficos originais de arte CGI ainda pendente. Ainda não há campanha nativa ou sprites CGI definitivos.
