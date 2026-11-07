@@ -20,7 +20,7 @@ public:
         // Data-derived terrain seed, NOT a decompiled map. No ROM bytes are retained.
         uint32_t hash=2166136261u;
         for (size_t i=0;i<length;++i) hash=(hash^rom[i])*16777619u;
-        seed_=hash; ready_=true; sprite_.clear(); scene_.clear(); reset(); return true;
+        seed_=hash; ready_=true; sprite_.clear(); scene_.clear(); mission_.useDefaults(); reset(); return true;
     }
     void reset() {
         x_=160; y_=135; frames_=0; heading_=0; fireCooldown_=0;
@@ -28,6 +28,16 @@ public:
     }
     void restartMission(){if(ready_)reset();}
     const CombatMission& mission()const{return mission_;}
+    bool configureMission(const std::vector<CombatMission::TargetSpec>& specs) {
+        if(!ready_ || !mission_.configure(specs)) return false;
+        x_=160.f;y_=135.f;frames_=0;heading_=0;fireCooldown_=0;shots_.clear();
+        return true;
+    }
+    void useDefaultMission(){
+        if(!ready_)return;
+        mission_.useDefaults();
+        x_=160.f;y_=135.f;frames_=0;heading_=0;fireCooldown_=0;shots_.clear();
+    }
     bool ready() const {return ready_;}
     bool setHelicopterSprite(const uint32_t* pixels, size_t count, int width, int height) {
         return ready_ && sprite_.set(pixels,count,width,height,1);
@@ -129,7 +139,8 @@ public:
             }
             // Four distinct stationary ground targets; no licensed assets.
             rect(pixels,tx-12,ty-7,tx+13,ty+8,rgba(38,44,34));
-            rect(pixels,tx-10,ty-6,tx+11,ty+6,rgba(85,100,62));
+            rect(pixels,tx-10,ty-6,tx+11,ty+6,
+                 target.type==2?rgba(79,91,132):rgba(85,100,62));
             rect(pixels,tx-6,ty-4,tx+7,ty+5,rgba(132,128,77));
             disc(pixels,tx,ty,5,rgba(55,72,48));
             if(target.turret)
@@ -166,7 +177,7 @@ public:
         rect(pixels,7,8,110,17,rgba(30,31,29));
         rect(pixels,9,10,9+mission_.health(),15,
              mission_.health()>30?rgba(49,225,106):rgba(252,78,60));
-        for(int i=0;i<CombatMission::TARGET_COUNT;++i){
+        for(int i=0;i<mission_.total();++i){
             rect(pixels,8+i*13,23,18+i*13,28,
                 i<mission_.destroyed()?rgba(73,219,101):rgba(220,75,54));
         }

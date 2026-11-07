@@ -75,6 +75,30 @@ Java_br_com_rom2native_NativeEngine_clearSceneImage(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
     engine.clearScene();
 }
+extern "C" JNIEXPORT jboolean JNICALL
+Java_br_com_rom2native_NativeEngine_configureMission(JNIEnv* env,jobject,
+        jintArray targetData,jint count){
+    if(!targetData || count<1 || count>romnative::CombatMission::MAX_TARGETS ||
+       env->GetArrayLength(targetData)!=count*5)return JNI_FALSE;
+    std::vector<jint> values(static_cast<size_t>(count)*5);
+    env->GetIntArrayRegion(targetData,0,static_cast<jsize>(values.size()),values.data());
+    if(env->ExceptionCheck())return JNI_FALSE;
+    std::vector<romnative::CombatMission::TargetSpec> specs;
+    specs.reserve(static_cast<size_t>(count));
+    for(int i=0;i<count;++i){
+        const int offset=i*5;
+        specs.push_back({static_cast<float>(values[offset]),
+                         static_cast<float>(values[offset+1]),
+                         values[offset+2],values[offset+3],values[offset+4]});
+    }
+    std::lock_guard<std::mutex> lock(mutex);
+    return engine.configureMission(specs)?JNI_TRUE:JNI_FALSE;
+}
+extern "C" JNIEXPORT void JNICALL
+Java_br_com_rom2native_NativeEngine_defaultMission(JNIEnv*,jobject){
+    std::lock_guard<std::mutex> lock(mutex);
+    engine.useDefaultMission();
+}
 extern "C" JNIEXPORT void JNICALL
 Java_br_com_rom2native_NativeEngine_restartMission(JNIEnv*,jobject) {
     std::lock_guard<std::mutex> lock(mutex);
@@ -88,7 +112,7 @@ Java_br_com_rom2native_NativeEngine_missionStats(JNIEnv* env,jobject) {
         std::lock_guard<std::mutex> lock(mutex);
         const auto& mission=engine.mission();
         stats={mission.health(),mission.destroyed(),
-               romnative::CombatMission::TARGET_COUNT,
+               mission.total(),
                static_cast<jint>(mission.state())};
     }
     auto result=env->NewIntArray(4);
@@ -107,6 +131,7 @@ Java_br_com_rom2native_NativeEngine_status(JNIEnv* env,jobject) {
        " | frames_sprite="+std::to_string(engine.spriteFrames())+
        " | cenario="+(engine.hasScene()?"personalizado":"provisorio")+
        " | HP="+std::to_string(engine.mission().health())+
-       " | destruidos="+std::to_string(engine.mission().destroyed());
+       " | destruidos="+std::to_string(engine.mission().destroyed())+
+       "/"+std::to_string(engine.mission().total());
     return env->NewStringUTF(s.c_str());
 }
