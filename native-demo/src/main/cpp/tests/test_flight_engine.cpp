@@ -93,5 +93,23 @@ int main() {
     assert(e.mission().health()==100 && e.mission().destroyed()==0);
     assert(e.x()==160.f && e.y()==135.f);
     assert(e.hasScene()==false);
+    // User-authored mission profiles replace the hardcoded fallback.
+    std::vector<romnative::CombatMission::TargetSpec> custom={
+        {70.f,70.f,2,1,0},
+        {244.f,164.f,4,2,20},
+        {160.f,198.f,1,0,0}
+    };
+    assert(e.configureMission(custom));
+    assert(e.mission().total()==3 && e.mission().health()==100);
+    e.restartMission();
+    assert(e.mission().total()==3);
+    assert(e.mission().targets()[1].x==244.f);
+    assert(!e.configureMission({{70.f,70.f,1,0,0},{75.f,80.f,1,0,0}}));
+    assert(e.mission().total()==3);
+    e.useDefaultMission();
+    assert(e.mission().total()==4);
+    assert(e.load(rom.data(),rom.size()));
+    assert(e.mission().total()==4);
+
     std::puts("PASS native flight engine (no emulator dependency)");
 }

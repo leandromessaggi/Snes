@@ -19,7 +19,7 @@ object MissionProfile {
         return when(value) {
             is Int -> value
             is Long -> {
-                require(value in Int.MIN_VALUE..Int.MAX_VALUE){"Número muito grande: $key"}
+                require(value>=Int.MIN_VALUE.toLong() && value<=Int.MAX_VALUE.toLong()){"Número muito grande: $key"}
                 value.toInt()
             }
             else -> error("Esperado número inteiro em $key")

@@ -9,8 +9,8 @@ android {
         applicationId = "br.com.rom2native"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.7-native-combat-prototype"
+        versionCode = 8
+        versionName = "0.8-data-driven-missions"
         ndk { abiFilters += listOf("arm64-v8a") }
     }
     ndkVersion = "27.2.12479018"
