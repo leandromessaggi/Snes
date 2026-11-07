@@ -1,0 +1,52 @@
+{
+  "format": "rom2native-mission-v1",
+  "rom_sha256": "606abf536440173ae36466db360c7db6b474beb7a105c8a62bc74a54cbe1c38b",
+  "title": "Operação Dunas — demonstração",
+  "goal": "destroy_all",
+  "targets": [
+    {
+      "id": "torre-norte",
+      "type": "turret",
+      "x": 60,
+      "y": 63,
+      "hp": 2
+    },
+    {
+      "id": "patrulha-leste",
+      "type": "patrol",
+      "x": 245,
+      "y": 80,
+      "hp": 3,
+      "patrol_range": 20
+    },
+    {
+      "id": "deposito-central",
+      "type": "depot",
+      "x": 149,
+      "y": 58,
+      "hp": 2
+    },
+    {
+      "id": "torre-sul",
+      "type": "turret",
+      "x": 265,
+      "y": 178,
+      "hp": 2
+    },
+    {
+      "id": "patrulha-oeste",
+      "type": "patrol",
+      "x": 78,
+      "y": 185,
+      "hp": 2,
+      "patrol_range": 24
+    },
+    {
+      "id": "deposito-sul",
+      "type": "depot",
+      "x": 168,
+      "y": 194,
+      "hp": 3
+    }
+  ]
+}

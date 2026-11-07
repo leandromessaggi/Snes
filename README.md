@@ -1,3 +1,9 @@
+**Missões configuráveis v0.8:** [guia e exemplo JSON](docs/MISSIONS_NATIVE.md). O novo APK mantém o motor C++ sem emulação.
+
+**Novo na v0.2:** o motor C++ agora aceita [pacotes visuais CGI/PNG](docs/VISUAL_PACKS.md) importados pelo app Android. O jogo ainda é um protótipo demonstrativo.
+
+**Novo projeto:** [ROM2Native AI — motor próprio e conversão CGI com IA](docs/ROM2NATIVE_AI.md). Consulte o diretório native-demo para o APK sem Snes9x. A aplicação antiga permanece intacta.
+
 # Desert Strike Android v0.13 (experimental)
 
 Projeto de pesquisa e adaptação do jogo **Desert Strike: Return to the Gulf (SNES)** para Android ARM64.

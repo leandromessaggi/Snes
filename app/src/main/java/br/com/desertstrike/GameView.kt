@@ -2,6 +2,7 @@ package br.com.desertstrike
 
 import android.content.Context
 import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -62,6 +63,14 @@ class GameView(context: Context, private val menu: () -> Unit, private val touch
             frame?.setPixels(px,0,w,0,0,w,h)
         }
         postInvalidate()
+    }
+    data class ReferenceFrame(val width: Int, val height: Int, val png: ByteArray)
+    fun snapshotReferenceFrame(): ReferenceFrame? = synchronized(guard) {
+        val bitmap = frame ?: return@synchronized null
+        if (frameW !in 1..512 || frameH !in 1..512) return@synchronized null
+        val bytes = ByteArrayOutputStream()
+        if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, bytes)) return@synchronized null
+        ReferenceFrame(frameW, frameH, bytes.toByteArray())
     }
     fun pixelBuffer(): IntArray = px
     override fun onDraw(canvas: Canvas) {
