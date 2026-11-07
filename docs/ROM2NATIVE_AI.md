@@ -148,3 +148,11 @@ inteligência artificial, tropas, veículos, colisões e física fiéis.
 Teste: importe a ROM original e o mesmo pacote visual v3 da versão anterior.
 Use as setas para direcionar o helicóptero, FIRE para disparar e destrua
 os quatro alvos. Para repetir, use REINICIAR no HUD.
+
+## v0.8 — missões por dados externos
+
+O aplicativo nativo aceita arquivos JSON ROM-vinculados com até 12 unidades
+(torres, depósitos e patrulhas). Posições e pontos de vida deixam de ser
+constantes compiladas no APK. Missões podem ser editadas localmente
+e os assets CGI v3 continuam válidos. Consulte [Missões nativas](MISSIONS_NATIVE.md).
+As posições do exemplo são fictícias e não foram extraídas do jogo original.
