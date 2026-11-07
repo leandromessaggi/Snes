@@ -20,6 +20,7 @@ class MainActivity : Activity() {
     private lateinit var status: TextView
     private val down = mutableSetOf<Int>()
     private var pad = 0
+    private var missionTitle = "Treino padrão"
     private val supportedHash = "606abf536440173ae36466db360c7db6b474beb7a105c8a62bc74a54cbe1c38b"
 
     override fun onCreate(state: Bundle?) {
@@ -49,6 +50,39 @@ class MainActivity : Activity() {
                 }
             }
         }
+        val missionRow=LinearLayout(this).apply {
+            orientation=LinearLayout.HORIZONTAL
+        }
+        val missionButton=Button(this).apply {
+            text="Importar missão JSON"
+            setOnClickListener {
+                if(!view.loaded){
+                    status.text="Importe a ROM antes da missão"
+                } else {
+                    val intent=Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        type="*/*"
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                    }
+                    startActivityForResult(intent,103)
+                }
+            }
+        }
+        val defaultMissionButton=Button(this).apply {
+            text="Missão padrão"
+            setOnClickListener {
+                if(!view.loaded){
+                    status.text="Importe a ROM antes de reiniciar"
+                } else {
+                    NativeEngine.defaultMission()
+                    missionTitle="Treino padrão"
+                    File(filesDir,"mission.json").delete()
+                    down.clear();pad=0;view.touchMask=0
+                    showStatus();view.invalidate()
+                }
+            }
+        }
+        missionRow.addView(missionButton,LinearLayout.LayoutParams(0,-2,1f))
+        missionRow.addView(defaultMissionButton,LinearLayout.LayoutParams(0,-2,1f))
         status=TextView(this).apply {
             text="Protótipo nativo: importe sua ROM para iniciar. Física e mapa são experimentais."
             setPadding(12,3,12,3)
@@ -56,6 +90,7 @@ class MainActivity : Activity() {
         view=FlightView(this,{pad})
         root.addView(importButton)
         root.addView(visualButton)
+        root.addView(missionRow)
         root.addView(status)
         root.addView(view,LinearLayout.LayoutParams(-1,0,1f))
         setContentView(root)
@@ -66,6 +101,7 @@ class MainActivity : Activity() {
                 view.loaded=NativeEngine.importRom(bytes)
                 showStatus()
                 restoreVisualPack()
+                restoreMission()
             }
         } catch (_:Exception) { }
     }
@@ -91,8 +127,24 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun restoreMission(){
+        val stored=File(filesDir,"mission.json")
+        if(!stored.isFile || !view.loaded)return
+        try {
+            val parsed=MissionProfile.parse(stored.readBytes(),supportedHash)
+            check(NativeEngine.configureMission(parsed.targets,parsed.count)){
+                "Motor recusou missão personalizada"
+            }
+            missionTitle=parsed.title
+            showStatus()
+        } catch(e:Exception){
+            missionTitle="Treino padrão"
+            status.text="Missão personalizada não carregada: "+e.message
+        }
+    }
+
     private fun showStatus() {
-        status.text="MVP NATIVO • sem Snes9x • regras e cenário demonstrativos • "+NativeEngine.status()
+        status.text="MVP NATIVO • $missionTitle • sem Snes9x • "+NativeEngine.status()
     }
     private fun readCapped(stream:java.io.InputStream,max:Int):ByteArray {
         val output=ByteArrayOutputStream()
@@ -133,7 +185,7 @@ class MainActivity : Activity() {
     @Deprecated("Uses Android document picker")
     override fun onActivityResult(requestCode:Int,resultCode:Int,data:Intent?) {
         super.onActivityResult(requestCode,resultCode,data)
-        if ((requestCode!=101 && requestCode!=102) || resultCode!=RESULT_OK || data?.data==null) return
+        if (requestCode !in setOf(101,102,103) || resultCode!=RESULT_OK || data?.data==null) return
         try {
             when (requestCode) {
                 101 -> {
@@ -144,6 +196,7 @@ class MainActivity : Activity() {
                     view.loaded=true
                     showStatus()
                     restoreVisualPack()
+                    restoreMission()
                 }
                 102 -> {
                     check(view.loaded){"Importe a ROM original antes"}
@@ -155,6 +208,21 @@ class MainActivity : Activity() {
                     File(filesDir,"visualpack.zip").writeBytes(pack)
                     showStatus()
                     status.text = status.text.toString() + " • pacote visual validado"
+                    view.invalidate()
+                }
+                103 -> {
+                    check(view.loaded){"Importe a ROM original primeiro"}
+                    val json=contentResolver.openInputStream(data.data!!)?.use {
+                        readCapped(it,32768)
+                    } ?: error("Arquivo da missão indisponível")
+                    val parsed=MissionProfile.parse(json,supportedHash)
+                    check(NativeEngine.configureMission(parsed.targets,parsed.count)){
+                        "Motor nativo não aceitou esta missão"
+                    }
+                    File(filesDir,"mission.json").writeBytes(json)
+                    missionTitle=parsed.title
+                    down.clear();pad=0;view.touchMask=0
+                    showStatus()
                     view.invalidate()
                 }
             }
